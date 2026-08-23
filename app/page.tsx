@@ -12,11 +12,9 @@ export default function Home() {
   const [size, setSize] = useState(1024);
   const [foreground, setForeground] = useState("#000000");
   const [background, setBackground] = useState("#ffffff");
-  const [errorLevel, setErrorLevel] = useState<
-    "L" | "M" | "Q" | "H"
-  >("H");
-
+  const [errorLevel, setErrorLevel] = useState<"L" | "M" | "Q" | "H">("H");
   const [generated, setGenerated] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     if (!text.trim() || !canvasRef.current) {
@@ -38,7 +36,7 @@ export default function Home() {
       },
       (error) => {
         if (error) {
-          console.error(error);
+          console.error("QR generation error:", error);
           setGenerated(false);
           return;
         }
@@ -46,25 +44,38 @@ export default function Home() {
         setGenerated(true);
       }
     );
-  }, [
-    text,
-    size,
-    foreground,
-    background,
-    errorLevel,
-  ]);
+  }, [text, size, foreground, background, errorLevel]);
 
-  function downloadPNG() {
-    if (!canvasRef.current || !generated) return;
+  async function downloadPNG() {
+    if (!text.trim()) return;
 
-    const link = document.createElement("a");
+    try {
+      setDownloading(true);
 
-    link.download = `qr-pro-${size}x${size}.png`;
-    link.href = canvasRef.current.toDataURL(
-      "image/png"
-    );
+      const dataUrl = await QRCode.toDataURL(text, {
+        width: size,
+        margin: 4,
+        errorCorrectionLevel: errorLevel,
+        color: {
+          dark: foreground,
+          light: background,
+        },
+      });
 
-    link.click();
+      const link = document.createElement("a");
+
+      link.href = dataUrl;
+      link.download = `qr-pro-${size}x${size}.png`;
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error("PNG export error:", error);
+      alert("Не удалось создать PNG. Попробуйте ещё раз.");
+    } finally {
+      setDownloading(false);
+    }
   }
 
   function clearAll() {
@@ -75,9 +86,6 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-slate-950 text-white">
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-
-        {/* HEADER */}
-
         <header className="mb-8 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white font-black text-slate-950">
@@ -85,9 +93,7 @@ export default function Home() {
             </div>
 
             <div>
-              <h1 className="text-2xl font-bold">
-                QR Pro
-              </h1>
+              <h1 className="text-2xl font-bold">QR Pro</h1>
 
               <p className="text-sm text-slate-400">
                 Генератор QR-кодов высокого разрешения
@@ -96,14 +102,8 @@ export default function Home() {
           </div>
         </header>
 
-        {/* MAIN */}
-
         <div className="grid gap-6 lg:grid-cols-[1fr_460px]">
-
-          {/* LEFT PANEL */}
-
           <section className="rounded-3xl border border-slate-800 bg-slate-900 p-5 shadow-2xl sm:p-7">
-
             <h2 className="mb-1 text-xl font-semibold">
               Создать QR-код
             </h2>
@@ -112,21 +112,13 @@ export default function Home() {
               Введите данные и настройте QR-код.
             </p>
 
-            {/* TYPE */}
-
             <div className="mb-6">
               <label className="mb-2 block text-sm font-medium text-slate-300">
                 Тип данных
               </label>
 
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-
-                {[
-                  "URL",
-                  "Текст",
-                  "Wi-Fi",
-                  "Контакт",
-                ].map((type) => (
+                {["URL", "Текст", "Wi-Fi", "Контакт"].map((type) => (
                   <button
                     key={type}
                     type="button"
@@ -135,11 +127,8 @@ export default function Home() {
                     {type}
                   </button>
                 ))}
-
               </div>
             </div>
-
-            {/* INPUT */}
 
             <div className="mb-6">
               <label className="mb-2 block text-sm font-medium text-slate-300">
@@ -148,15 +137,11 @@ export default function Home() {
 
               <textarea
                 value={text}
-                onChange={(e) =>
-                  setText(e.target.value)
-                }
+                onChange={(e) => setText(e.target.value)}
                 placeholder="https://example.com"
                 className="min-h-36 w-full resize-none rounded-2xl border border-slate-700 bg-slate-950 p-4 text-white outline-none transition placeholder:text-slate-600 focus:border-white"
               />
             </div>
-
-            {/* SIZE */}
 
             <div className="mb-6">
               <label className="mb-2 block text-sm font-medium text-slate-300">
@@ -164,7 +149,6 @@ export default function Home() {
               </label>
 
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-
                 {sizes.map((value) => (
                   <button
                     key={value}
@@ -179,7 +163,6 @@ export default function Home() {
                     {value}
                   </button>
                 ))}
-
               </div>
 
               <p className="mt-2 text-xs text-slate-500">
@@ -187,15 +170,12 @@ export default function Home() {
               </p>
             </div>
 
-            {/* ERROR CORRECTION */}
-
             <div className="mb-6">
               <label className="mb-2 block text-sm font-medium text-slate-300">
                 Коррекция ошибок
               </label>
 
               <div className="grid grid-cols-4 gap-2">
-
                 {[
                   ["L", "7%"],
                   ["M", "15%"],
@@ -206,9 +186,7 @@ export default function Home() {
                     key={level}
                     type="button"
                     onClick={() =>
-                      setErrorLevel(
-                        level as "L" | "M" | "Q" | "H"
-                      )
+                      setErrorLevel(level as "L" | "M" | "Q" | "H")
                     }
                     className={`rounded-xl border px-3 py-3 transition ${
                       errorLevel === level
@@ -216,23 +194,15 @@ export default function Home() {
                         : "border-slate-700 bg-slate-950 text-slate-300"
                     }`}
                   >
-                    <div className="font-semibold">
-                      {level}
-                    </div>
+                    <div className="font-semibold">{level}</div>
 
-                    <div className="text-xs opacity-60">
-                      {percent}
-                    </div>
+                    <div className="text-xs opacity-60">{percent}</div>
                   </button>
                 ))}
-
               </div>
             </div>
 
-            {/* COLORS */}
-
             <div className="grid gap-4 sm:grid-cols-2">
-
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-300">
                   Цвет QR
@@ -242,17 +212,13 @@ export default function Home() {
                   <input
                     type="color"
                     value={foreground}
-                    onChange={(e) =>
-                      setForeground(e.target.value)
-                    }
+                    onChange={(e) => setForeground(e.target.value)}
                     className="h-11 w-16 cursor-pointer rounded-xl border border-slate-700 bg-slate-950"
                   />
 
                   <input
                     value={foreground}
-                    onChange={(e) =>
-                      setForeground(e.target.value)
-                    }
+                    onChange={(e) => setForeground(e.target.value)}
                     className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm uppercase outline-none"
                   />
                 </div>
@@ -267,28 +233,20 @@ export default function Home() {
                   <input
                     type="color"
                     value={background}
-                    onChange={(e) =>
-                      setBackground(e.target.value)
-                    }
+                    onChange={(e) => setBackground(e.target.value)}
                     className="h-11 w-16 cursor-pointer rounded-xl border border-slate-700 bg-slate-950"
                   />
 
                   <input
                     value={background}
-                    onChange={(e) =>
-                      setBackground(e.target.value)
-                    }
+                    onChange={(e) => setBackground(e.target.value)}
                     className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm uppercase outline-none"
                   />
                 </div>
               </div>
-
             </div>
 
-            {/* BUTTONS */}
-
             <div className="mt-7 flex gap-3">
-
               <button
                 type="button"
                 onClick={clearAll}
@@ -300,20 +258,15 @@ export default function Home() {
               <button
                 type="button"
                 onClick={downloadPNG}
-                disabled={!generated}
+                disabled={!generated || downloading}
                 className="flex-1 rounded-xl bg-white px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Скачать PNG
+                {downloading ? "Создание PNG..." : "Скачать PNG"}
               </button>
-
             </div>
-
           </section>
 
-          {/* PREVIEW */}
-
           <section className="flex min-h-[520px] flex-col rounded-3xl border border-slate-800 bg-slate-900 p-5 shadow-2xl sm:p-7">
-
             <div className="mb-5">
               <h2 className="text-xl font-semibold">
                 Предпросмотр
@@ -326,14 +279,11 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="flex flex-1 items-center justify-center rounded-3xl bg-white p-5">
-
+            <div className="flex flex-1 items-center justify-center overflow-hidden rounded-3xl bg-white p-5">
               {!generated && (
                 <div className="text-center text-slate-400">
                   <div className="mx-auto mb-4 flex h-48 w-48 items-center justify-center rounded-2xl border-2 border-dashed border-slate-300">
-                    <span className="text-sm">
-                      QR-код
-                    </span>
+                    <span className="text-sm">QR-код</span>
                   </div>
 
                   <p className="text-sm">
@@ -346,11 +296,10 @@ export default function Home() {
                 ref={canvasRef}
                 className={
                   generated
-                    ? "max-h-full max-w-full rounded-xl"
+                    ? "h-auto max-h-full max-w-full rounded-xl"
                     : "hidden"
                 }
               />
-
             </div>
 
             {generated && (
@@ -376,17 +325,12 @@ export default function Home() {
                 </div>
               </div>
             )}
-
           </section>
-
         </div>
-
-        {/* FOOTER */}
 
         <footer className="py-8 text-center text-xs text-slate-600">
           QR Pro • High Resolution QR Generator
         </footer>
-
       </div>
     </main>
   );
