@@ -1,5 +1,5 @@
 {
-  "name": "generator-qrcodes",
+  "name": "generator-qrcodes", 
   "version": "1.0.0",
   "private": true,
   "scripts": {
