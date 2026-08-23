@@ -23,20 +23,16 @@ export default function Home() {
 
   const [size, setSize] = useState(1024);
 
-  const [foreground, setForeground] =
-    useState("#000000");
-
-  const [background, setBackground] =
-    useState("#ffffff");
+  const [foreground, setForeground] = useState("#000000");
+  const [background, setBackground] = useState("#ffffff");
 
   const [errorLevel, setErrorLevel] =
     useState<ErrorLevel>("H");
 
-  const [generated, setGenerated] =
-    useState(false);
+  const [generated, setGenerated] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
-  const [downloading, setDownloading] =
-    useState(false);
+  const [showWifiInfo, setShowWifiInfo] = useState(false);
 
   function escapeWifi(value: string) {
     return value.replace(/([\\;,:"])/g, "\\$1");
@@ -76,13 +72,8 @@ export default function Home() {
       },
       (error) => {
         if (error) {
-          console.error(
-            "QR generation error:",
-            error
-          );
-
+          console.error("QR generation error:", error);
           setGenerated(false);
-
           return;
         }
 
@@ -97,31 +88,32 @@ export default function Home() {
     errorLevel,
   ]);
 
+  function findWifiNetworks() {
+    setShowWifiInfo(true);
+  }
+
   async function downloadPNG() {
     if (!qrText.trim()) return;
 
     try {
       setDownloading(true);
 
-      const dataUrl =
-        await QRCode.toDataURL(qrText, {
-          width: size,
-          margin: 4,
-          errorCorrectionLevel: errorLevel,
-          color: {
-            dark: foreground,
-            light: background,
-          },
-        });
+      const dataUrl = await QRCode.toDataURL(qrText, {
+        width: size,
+        margin: 4,
+        errorCorrectionLevel: errorLevel,
+        color: {
+          dark: foreground,
+          light: background,
+        },
+      });
 
-      const newWindow =
-        window.open("", "_blank");
+      const newWindow = window.open("", "_blank");
 
       if (!newWindow) {
         alert(
           "Разрешите всплывающие окна для QR Pro."
         );
-
         return;
       }
 
@@ -247,17 +239,9 @@ export default function Home() {
       `);
 
       newWindow.document.close();
-
     } catch (error) {
-      console.error(
-        "PNG export error:",
-        error
-      );
-
-      alert(
-        "Не удалось создать PNG."
-      );
-
+      console.error("PNG export error:", error);
+      alert("Не удалось создать PNG.");
     } finally {
       setDownloading(false);
     }
@@ -269,60 +253,39 @@ export default function Home() {
     try {
       setDownloading(true);
 
-      const svg =
-        await QRCode.toString(
-          qrText,
-          {
-            type: "svg",
-            width: size,
-            margin: 4,
-            errorCorrectionLevel:
-              errorLevel,
+      const svg = await QRCode.toString(qrText, {
+        type: "svg",
+        width: size,
+        margin: 4,
+        errorCorrectionLevel: errorLevel,
+        color: {
+          dark: foreground,
+          light: background,
+        },
+      });
 
-            color: {
-              dark: foreground,
-              light: background,
-            },
-          }
-        );
+      const blob = new Blob([svg], {
+        type: "image/svg+xml;charset=utf-8",
+      });
 
-      const blob =
-        new Blob([svg], {
-          type:
-            "image/svg+xml;charset=utf-8",
-        });
+      const url = URL.createObjectURL(blob);
 
-      const url =
-        URL.createObjectURL(blob);
-
-      const link =
-        document.createElement("a");
+      const link = document.createElement("a");
 
       link.href = url;
-
       link.download =
         `qr-pro-${mode.toLowerCase()}-${size}x${size}.svg`;
 
       document.body.appendChild(link);
-
       link.click();
-
       document.body.removeChild(link);
 
       setTimeout(() => {
         URL.revokeObjectURL(url);
       }, 1000);
-
     } catch (error) {
-      console.error(
-        "SVG export error:",
-        error
-      );
-
-      alert(
-        "Не удалось создать SVG."
-      );
-
+      console.error("SVG export error:", error);
+      alert("Не удалось создать SVG.");
     } finally {
       setDownloading(false);
     }
@@ -333,11 +296,11 @@ export default function Home() {
 
     setWifiSSID("");
     setWifiPassword("");
-
     setWifiSecurity("WPA");
     setWifiHidden(false);
 
     setGenerated(false);
+    setShowWifiInfo(false);
   }
 
   return (
@@ -354,7 +317,6 @@ export default function Home() {
           </div>
 
           <div>
-
             <h1 className="text-2xl font-bold">
               QR Pro
             </h1>
@@ -362,7 +324,6 @@ export default function Home() {
             <p className="text-sm text-slate-400">
               Генератор QR-кодов высокого разрешения
             </p>
-
           </div>
 
         </header>
@@ -403,9 +364,10 @@ export default function Home() {
                   <button
                     key={type}
                     type="button"
-                    onClick={() =>
-                      setMode(type)
-                    }
+                    onClick={() => {
+                      setMode(type);
+                      setShowWifiInfo(false);
+                    }}
                     className={`rounded-xl border px-3 py-3 text-sm font-medium transition ${
                       mode === type
                         ? "border-white bg-white text-slate-950"
@@ -429,11 +391,9 @@ export default function Home() {
               <div className="mb-6">
 
                 <label className="mb-2 block text-sm font-medium text-slate-300">
-
                   {mode === "URL"
                     ? "Ссылка"
                     : "Текст"}
-
                 </label>
 
                 <textarea
@@ -459,24 +419,96 @@ export default function Home() {
 
               <div className="mb-6 space-y-5">
 
+                {/* SSID */}
+
                 <div>
 
                   <label className="mb-2 block text-sm font-medium text-slate-300">
                     Название Wi-Fi сети
                   </label>
 
-                  <input
-                    value={wifiSSID}
-                    onChange={(e) =>
-                      setWifiSSID(
-                        e.target.value
-                      )
-                    }
-                    placeholder="My WiFi"
-                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-white"
-                  />
+                  <div className="flex gap-2">
+
+                    <input
+                      value={wifiSSID}
+                      onChange={(e) =>
+                        setWifiSSID(
+                          e.target.value
+                        )
+                      }
+                      placeholder="My WiFi"
+                      className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-white"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={findWifiNetworks}
+                      className="flex shrink-0 items-center gap-2 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:border-white hover:bg-white hover:text-slate-950"
+                    >
+                      <span className="text-base">
+                        🔍
+                      </span>
+
+                      <span className="hidden sm:inline">
+                        Найти сети
+                      </span>
+
+                    </button>
+
+                  </div>
 
                 </div>
+
+                {/* WIFI INFO */}
+
+                {showWifiInfo && (
+
+                  <div className="rounded-2xl border border-blue-900/60 bg-blue-950/40 p-4">
+
+                    <div className="mb-2 flex items-start gap-3">
+
+                      <div className="text-xl">
+                        📶
+                      </div>
+
+                      <div className="flex-1">
+
+                        <div className="font-semibold text-blue-100">
+                          Сканирование Wi-Fi
+                        </div>
+
+                        <p className="mt-1 text-sm leading-6 text-blue-200/80">
+                          iPhone не разрешает обычным
+                          веб-приложениям получать список
+                          доступных Wi-Fi сетей.
+                        </p>
+
+                      </div>
+
+                    </div>
+
+                    <p className="mt-3 text-sm leading-6 text-slate-300">
+                      Откройте настройки Wi-Fi на iPhone,
+                      посмотрите название нужной сети
+                      и вернитесь сюда, чтобы ввести её
+                      название.
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowWifiInfo(false)
+                      }
+                      className="mt-3 rounded-lg border border-blue-800 px-3 py-2 text-xs font-medium text-blue-200 hover:bg-blue-900/50"
+                    >
+                      Понятно
+                    </button>
+
+                  </div>
+
+                )}
+
+                {/* PASSWORD */}
 
                 <div>
 
@@ -501,6 +533,8 @@ export default function Home() {
                   />
 
                 </div>
+
+                {/* SECURITY */}
 
                 <div>
 
@@ -534,6 +568,8 @@ export default function Home() {
 
                 </div>
 
+                {/* HIDDEN */}
+
                 <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-700 bg-slate-950 p-4">
 
                   <input
@@ -561,7 +597,9 @@ export default function Home() {
 
                 </label>
 
-                <div className="rounded-xl border border-blue-900/50 bg-blue-950/30 p-4 text-sm text-blue-200">
+                {/* INFO */}
+
+                <div className="rounded-xl border border-slate-700 bg-slate-950 p-4 text-sm leading-6 text-slate-400">
 
                   📱 После сканирования QR-кода
                   телефон сможет предложить
@@ -628,6 +666,10 @@ export default function Home() {
                 ))}
 
               </div>
+
+              <p className="mt-2 text-xs text-slate-500">
+                Максимум: 8192 × 8192 px
+              </p>
 
             </div>
 
@@ -808,11 +850,9 @@ export default function Home() {
               </h2>
 
               <p className="text-sm text-slate-400">
-
                 {generated
                   ? `${size} × ${size} px`
                   : "Введите данные"}
-
               </p>
 
             </div>
