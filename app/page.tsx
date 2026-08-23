@@ -5,16 +5,13 @@ import QRCode from "qrcode";
 
 const sizes = [512, 1024, 2048, 4096, 8192];
 
-const logoSizes = [
-  { value: 10, label: "10%" },
-  { value: 15, label: "15%" },
-  { value: 20, label: "20%" },
-  { value: 25, label: "25%" },
-  { value: 30, label: "30%" },
-];
+const logoSizes = [10, 15, 20, 25, 30];
 
 type ErrorLevel = "L" | "M" | "Q" | "H";
 type WifiSecurity = "WPA" | "WEP" | "nopass";
+type DotStyle = "square" | "round" | "soft";
+type CornerStyle = "square" | "round";
+type Preset = "classic" | "modern" | "neon" | "business";
 
 export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -35,18 +32,50 @@ export default function Home() {
   const [foreground, setForeground] = useState("#000000");
   const [background, setBackground] = useState("#ffffff");
 
+  const [gradientEnabled, setGradientEnabled] =
+    useState(false);
+
+  const [gradientColor, setGradientColor] =
+    useState("#6366f1");
+
+  const [dotStyle, setDotStyle] =
+    useState<DotStyle>("square");
+
+  const [cornerStyle, setCornerStyle] =
+    useState<CornerStyle>("square");
+
+  const [borderEnabled, setBorderEnabled] =
+    useState(false);
+
+  const [borderWidth, setBorderWidth] =
+    useState(20);
+
+  const [captionEnabled, setCaptionEnabled] =
+    useState(false);
+
+  const [caption, setCaption] =
+    useState("Сканируй меня");
+
   const [errorLevel, setErrorLevel] =
     useState<ErrorLevel>("H");
 
-  const [generated, setGenerated] = useState(false);
-  const [downloading, setDownloading] = useState(false);
+  const [preset, setPreset] =
+    useState<Preset>("classic");
+
+  const [generated, setGenerated] =
+    useState(false);
+
+  const [downloading, setDownloading] =
+    useState(false);
 
   const [showWifiInfo, setShowWifiInfo] =
     useState(false);
 
-  const [logo, setLogo] = useState<string | null>(null);
+  const [logo, setLogo] =
+    useState<string | null>(null);
 
-  const [logoSize, setLogoSize] = useState(20);
+  const [logoSize, setLogoSize] =
+    useState(20);
 
   const [logoError, setLogoError] =
     useState("");
@@ -70,7 +99,64 @@ export default function Home() {
   const qrText = getQRText();
 
   /*
-   * Загрузка логотипа
+   * PRESETS
+   */
+
+  function applyPreset(value: Preset) {
+    setPreset(value);
+
+    if (value === "classic") {
+      setForeground("#000000");
+      setBackground("#ffffff");
+      setGradientEnabled(false);
+      setDotStyle("square");
+      setCornerStyle("square");
+      setBorderEnabled(false);
+      setCaptionEnabled(false);
+      return;
+    }
+
+    if (value === "modern") {
+      setForeground("#111827");
+      setBackground("#ffffff");
+      setGradientEnabled(true);
+      setGradientColor("#6366f1");
+      setDotStyle("soft");
+      setCornerStyle("round");
+      setBorderEnabled(false);
+      setCaptionEnabled(false);
+      return;
+    }
+
+    if (value === "neon") {
+      setForeground("#7c3aed");
+      setBackground("#050505");
+      setGradientEnabled(true);
+      setGradientColor("#06b6d4");
+      setDotStyle("round");
+      setCornerStyle("round");
+      setBorderEnabled(true);
+      setBorderWidth(25);
+      setCaptionEnabled(true);
+      setCaption("SCAN ME");
+      return;
+    }
+
+    if (value === "business") {
+      setForeground("#111111");
+      setBackground("#ffffff");
+      setGradientEnabled(false);
+      setDotStyle("soft");
+      setCornerStyle("round");
+      setBorderEnabled(true);
+      setBorderWidth(18);
+      setCaptionEnabled(true);
+      setCaption("Сканируй меня");
+    }
+  }
+
+  /*
+   * LOGO
    */
 
   function handleLogoUpload(
@@ -99,9 +185,7 @@ export default function Home() {
     const reader = new FileReader();
 
     reader.onload = () => {
-      if (
-        typeof reader.result === "string"
-      ) {
+      if (typeof reader.result === "string") {
         setLogo(reader.result);
       }
     };
@@ -125,118 +209,349 @@ export default function Home() {
   }
 
   /*
-   * Генерация QR + логотип
+   * QR CANVAS
    */
 
-  async function drawQRWithLogo() {
+  async function generateBaseQR(
+    target: HTMLCanvasElement
+  ) {
+    await QRCode.toCanvas(target, qrText, {
+      width: size,
+      margin: 4,
+      errorCorrectionLevel: errorLevel,
+      color: {
+        dark: foreground,
+        light: background,
+      },
+    });
+  }
+
+  /*
+   * РИСУЕМ ДИЗАЙН
+   */
+
+  async function drawDesignedQR() {
     const canvas = canvasRef.current;
 
     if (!canvas || !qrText.trim()) {
       return;
     }
 
-    await QRCode.toCanvas(
-      canvas,
-      qrText,
-      {
-        width: size,
-        margin: 4,
-        errorCorrectionLevel: errorLevel,
-        color: {
-          dark: foreground,
-          light: background,
-        },
-      }
-    );
+    await generateBaseQR(canvas);
 
-    if (!logo) {
-      return;
+    const ctx = canvas.getContext("2d");
+
+    if (!ctx) return;
+
+    /*
+     * Градиент
+     */
+
+    if (gradientEnabled) {
+      const gradient = ctx.createLinearGradient(
+        0,
+        0,
+        size,
+        size
+      );
+
+      gradient.addColorStop(
+        0,
+        foreground
+      );
+
+      gradient.addColorStop(
+        1,
+        gradientColor
+      );
+
+      /*
+       * Перекрашиваем только непрозрачные
+       * пиксели QR.
+       */
+
+      const imageData =
+        ctx.getImageData(
+          0,
+          0,
+          size,
+          size
+        );
+
+      const pixels = imageData.data;
+
+      for (
+        let i = 0;
+        i < pixels.length;
+        i += 4
+      ) {
+        const r = pixels[i];
+        const g = pixels[i + 1];
+        const b = pixels[i + 2];
+
+        /*
+         * Определяем тёмные пиксели.
+         */
+
+        const brightness =
+          (r + g + b) / 3;
+
+        if (brightness < 220) {
+          const x =
+            ((i / 4) % size) / size;
+
+          const y =
+            Math.floor(
+              i / 4 / size
+            ) / size;
+
+          const t =
+            (x + y) / 2;
+
+          const start =
+            hexToRgb(foreground);
+
+          const end =
+            hexToRgb(gradientColor);
+
+          if (start && end) {
+            pixels[i] =
+              Math.round(
+                start.r +
+                  (end.r - start.r) *
+                    t
+              );
+
+            pixels[i + 1] =
+              Math.round(
+                start.g +
+                  (end.g - start.g) *
+                    t
+              );
+
+            pixels[i + 2] =
+              Math.round(
+                start.b +
+                  (end.b - start.b) *
+                    t
+              );
+          }
+        }
+      }
+
+      ctx.putImageData(
+        imageData,
+        0,
+        0
+      );
     }
 
-    await new Promise<void>((resolve) => {
-      const image = new Image();
+    /*
+     * Логотип
+     */
 
-      image.onload = () => {
-        const ctx = canvas.getContext("2d");
+    if (logo) {
+      await drawLogo(ctx);
+    }
 
-        if (!ctx) {
-          resolve();
-          return;
-        }
+    /*
+     * Рамка
+     */
 
-        const logoPixels =
-          size * (logoSize / 100);
+    if (borderEnabled) {
+      drawBorder(ctx);
+    }
 
-        const x =
-          (size - logoPixels) / 2;
+    /*
+     * Подпись
+     */
 
-        const y =
-          (size - logoPixels) / 2;
+    if (captionEnabled) {
+      drawCaption(ctx);
+    }
+  }
 
-        /*
-         * Белая подложка вокруг логотипа.
-         * Она помогает сохранить читаемость QR.
-         */
+  function hexToRgb(hex: string) {
+    const clean = hex.replace(
+      "#",
+      ""
+    );
 
-        const padding =
-          logoPixels * 0.12;
+    if (clean.length !== 6) {
+      return null;
+    }
 
-        ctx.save();
-
-        ctx.fillStyle = background;
-
-        ctx.beginPath();
-
-        ctx.roundRect(
-          x - padding,
-          y - padding,
-          logoPixels + padding * 2,
-          logoPixels + padding * 2,
-          logoPixels * 0.12
-        );
-
-        ctx.fill();
-
-        /*
-         * Рисуем логотип.
-         */
-
-        ctx.drawImage(
-          image,
-          x,
-          y,
-          logoPixels,
-          logoPixels
-        );
-
-        ctx.restore();
-
-        resolve();
-      };
-
-      image.onerror = () => {
-        resolve();
-      };
-
-      image.src = logo;
-    });
+    return {
+      r: parseInt(
+        clean.substring(0, 2),
+        16
+      ),
+      g: parseInt(
+        clean.substring(2, 4),
+        16
+      ),
+      b: parseInt(
+        clean.substring(4, 6),
+        16
+      ),
+    };
   }
 
   /*
-   * Автоматическое обновление QR
+   * LOGO
+   */
+
+  async function drawLogo(
+    ctx: CanvasRenderingContext2D
+  ) {
+    if (!logo) return;
+
+    await new Promise<void>(
+      (resolve) => {
+        const image =
+          new Image();
+
+        image.onload = () => {
+          const logoPixels =
+            size *
+            (logoSize / 100);
+
+          const x =
+            (size - logoPixels) /
+            2;
+
+          const y =
+            (size - logoPixels) /
+            2;
+
+          const padding =
+            logoPixels * 0.12;
+
+          ctx.save();
+
+          ctx.fillStyle =
+            background;
+
+          ctx.beginPath();
+
+          ctx.roundRect(
+            x - padding,
+            y - padding,
+            logoPixels +
+              padding * 2,
+            logoPixels +
+              padding * 2,
+            logoPixels * 0.12
+          );
+
+          ctx.fill();
+
+          ctx.drawImage(
+            image,
+            x,
+            y,
+            logoPixels,
+            logoPixels
+          );
+
+          ctx.restore();
+
+          resolve();
+        };
+
+        image.onerror = () => {
+          resolve();
+        };
+
+        image.src = logo;
+      }
+    );
+  }
+
+  /*
+   * BORDER
+   */
+
+  function drawBorder(
+    ctx: CanvasRenderingContext2D
+  ) {
+    ctx.save();
+
+    ctx.strokeStyle =
+      gradientEnabled
+        ? gradientColor
+        : foreground;
+
+    ctx.lineWidth =
+      borderWidth;
+
+    ctx.strokeRect(
+      borderWidth / 2,
+      borderWidth / 2,
+      size - borderWidth,
+      size - borderWidth
+    );
+
+    ctx.restore();
+  }
+
+  /*
+   * CAPTION
+   */
+
+  function drawCaption(
+    ctx: CanvasRenderingContext2D
+  ) {
+    const fontSize =
+      Math.max(
+        24,
+        Math.floor(size * 0.035)
+      );
+
+    ctx.save();
+
+    ctx.font =
+      `700 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+
+    ctx.textAlign = "center";
+
+    ctx.textBaseline =
+      "bottom";
+
+    ctx.fillStyle =
+      foreground;
+
+    ctx.fillText(
+      caption,
+      size / 2,
+      size -
+        Math.max(
+          20,
+          borderWidth
+        )
+    );
+
+    ctx.restore();
+  }
+
+  /*
+   * GENERATION
    */
 
   useEffect(() => {
     let cancelled = false;
 
     async function generate() {
-      if (!qrText.trim() || !canvasRef.current) {
+      if (
+        !qrText.trim() ||
+        !canvasRef.current
+      ) {
         setGenerated(false);
         return;
       }
 
       try {
-        await drawQRWithLogo();
+        await drawDesignedQR();
 
         if (!cancelled) {
           setGenerated(true);
@@ -263,13 +578,21 @@ export default function Home() {
     size,
     foreground,
     background,
+    gradientEnabled,
+    gradientColor,
+    dotStyle,
+    cornerStyle,
+    borderEnabled,
+    borderWidth,
+    captionEnabled,
+    caption,
     errorLevel,
     logo,
     logoSize,
   ]);
 
   /*
-   * Wi-Fi
+   * WIFI
    */
 
   function findWifiNetworks() {
@@ -286,21 +609,27 @@ export default function Home() {
     try {
       setDownloading(true);
 
-      await drawQRWithLogo();
+      await drawDesignedQR();
 
-      const canvas = canvasRef.current;
+      const canvas =
+        canvasRef.current;
 
       if (!canvas) {
         throw new Error(
-          "Canvas not available"
+          "Canvas unavailable"
         );
       }
 
       const dataUrl =
-        canvas.toDataURL("image/png");
+        canvas.toDataURL(
+          "image/png"
+        );
 
       const newWindow =
-        window.open("", "_blank");
+        window.open(
+          "",
+          "_blank"
+        );
 
       if (!newWindow) {
         alert(
@@ -312,6 +641,7 @@ export default function Home() {
       newWindow.document.write(`
         <!DOCTYPE html>
         <html lang="ru">
+
         <head>
           <meta charset="UTF-8">
 
@@ -323,6 +653,7 @@ export default function Home() {
           <title>QR Pro — PNG</title>
 
           <style>
+
             * {
               box-sizing: border-box;
             }
@@ -330,6 +661,7 @@ export default function Home() {
             body {
               margin: 0;
               min-height: 100vh;
+
               padding: 24px;
 
               display: flex;
@@ -343,7 +675,6 @@ export default function Home() {
               font-family:
                 -apple-system,
                 BlinkMacSystemFont,
-                "SF Pro Display",
                 "Segoe UI",
                 sans-serif;
             }
@@ -354,35 +685,34 @@ export default function Home() {
               text-align: center;
             }
 
-            .title {
+            h1 {
+              margin: 0 0 8px;
               font-size: 26px;
-              font-weight: 700;
-              margin-bottom: 8px;
             }
 
             .subtitle {
               color: #94a3b8;
-              font-size: 14px;
               margin-bottom: 24px;
+              font-size: 14px;
             }
 
-            .qr-wrapper {
+            .qr {
               background: white;
               padding: 16px;
               border-radius: 20px;
               display: inline-block;
-              max-width: 100%;
             }
 
             img {
               display: block;
-              max-width: min(80vw, 600px);
+              max-width: 80vw;
+              max-height: 70vh;
               height: auto;
             }
 
-            .instruction {
+            .info {
               margin-top: 24px;
-              padding: 16px 20px;
+              padding: 16px;
 
               border-radius: 16px;
 
@@ -391,35 +721,36 @@ export default function Home() {
 
               color: #cbd5e1;
 
-              line-height: 1.6;
               font-size: 14px;
+              line-height: 1.6;
             }
+
           </style>
+
         </head>
 
         <body>
 
           <div class="container">
 
-            <div class="title">
-              QR Pro
-            </div>
+            <h1>QR Pro</h1>
 
             <div class="subtitle">
-              ${size} × ${size} px • PNG
+              ${size} × ${size} px
               ${logo ? " • Logo" : ""}
+              ${gradientEnabled ? " • Gradient" : ""}
             </div>
 
-            <div class="qr-wrapper">
+            <div class="qr">
 
               <img
                 src="${dataUrl}"
-                alt="QR-код QR Pro"
+                alt="QR Pro"
               />
 
             </div>
 
-            <div class="instruction">
+            <div class="info">
               На iPhone нажмите
               <strong>«Поделиться»</strong>
               →
@@ -429,13 +760,14 @@ export default function Home() {
           </div>
 
         </body>
+
         </html>
       `);
 
       newWindow.document.close();
     } catch (error) {
       console.error(
-        "PNG export error:",
+        "PNG error:",
         error
       );
 
@@ -474,18 +806,21 @@ export default function Home() {
         );
 
       /*
-       * Добавляем логотип внутрь SVG.
+       * Логотип SVG
        */
 
       if (logo) {
         const logoPixels =
-          size * (logoSize / 100);
+          size *
+          (logoSize / 100);
 
         const x =
-          (size - logoPixels) / 2;
+          (size - logoPixels) /
+          2;
 
         const y =
-          (size - logoPixels) / 2;
+          (size - logoPixels) /
+          2;
 
         const padding =
           logoPixels * 0.12;
@@ -497,65 +832,110 @@ export default function Home() {
           y - padding;
 
         const rectSize =
-          logoPixels + padding * 2;
-
-        const logoSvg = `
-          <rect
-            x="${rectX}"
-            y="${rectY}"
-            width="${rectSize}"
-            height="${rectSize}"
-            rx="${logoPixels * 0.12}"
-            fill="${background}"
-          />
-
-          <image
-            href="${logo}"
-            x="${x}"
-            y="${y}"
-            width="${logoPixels}"
-            height="${logoPixels}"
-            preserveAspectRatio="xMidYMid meet"
-          />
-        `;
+          logoPixels +
+          padding * 2;
 
         svg = svg.replace(
           "</svg>",
-          `${logoSvg}</svg>`
+          `
+            <rect
+              x="${rectX}"
+              y="${rectY}"
+              width="${rectSize}"
+              height="${rectSize}"
+              rx="${logoPixels * 0.12}"
+              fill="${background}"
+            />
+
+            <image
+              href="${logo}"
+              x="${x}"
+              y="${y}"
+              width="${logoPixels}"
+              height="${logoPixels}"
+              preserveAspectRatio="xMidYMid meet"
+            />
+
+          </svg>
+          `
+        );
+      }
+
+      /*
+       * SVG caption
+       */
+
+      if (captionEnabled) {
+        const fontSize =
+          Math.max(
+            24,
+            Math.floor(
+              size * 0.035
+            )
+          );
+
+        svg = svg.replace(
+          "</svg>",
+          `
+            <text
+              x="${size / 2}"
+              y="${size - 20}"
+              text-anchor="middle"
+              font-family="Arial, sans-serif"
+              font-size="${fontSize}"
+              font-weight="700"
+              fill="${foreground}"
+            >
+              ${escapeSvg(caption)}
+            </text>
+
+          </svg>
+          `
         );
       }
 
       const blob =
-        new Blob([svg], {
-          type:
-            "image/svg+xml;charset=utf-8",
-        });
+        new Blob(
+          [svg],
+          {
+            type:
+              "image/svg+xml;charset=utf-8",
+          }
+        );
 
       const url =
-        URL.createObjectURL(blob);
+        URL.createObjectURL(
+          blob
+        );
 
       const link =
-        document.createElement("a");
+        document.createElement(
+          "a"
+        );
 
       link.href = url;
 
       link.download =
-        `qr-pro-${mode.toLowerCase()}-${size}x${size}${
-          logo ? "-logo" : ""
-        }.svg`;
+        `qr-pro-${mode.toLowerCase()}-${size}x${size}.svg`;
 
-      document.body.appendChild(link);
+      document.body.appendChild(
+        link
+      );
 
       link.click();
 
-      document.body.removeChild(link);
+      document.body.removeChild(
+        link
+      );
 
       setTimeout(() => {
-        URL.revokeObjectURL(url);
+        URL.revokeObjectURL(
+          url
+        );
       }, 1000);
     } catch (error) {
       console.error(
-        "SVG export error:",
+        "SVG error:",
         error
       );
 
@@ -567,8 +947,17 @@ export default function Home() {
     }
   }
 
+  function escapeSvg(value: string) {
+    return value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&apos;");
+  }
+
   /*
-   * Очистка
+   * CLEAR
    */
 
   function clearAll() {
@@ -581,6 +970,20 @@ export default function Home() {
 
     setLogo(null);
     setLogoError("");
+
+    setGradientEnabled(false);
+    setGradientColor("#6366f1");
+
+    setDotStyle("square");
+    setCornerStyle("square");
+
+    setBorderEnabled(false);
+    setBorderWidth(20);
+
+    setCaptionEnabled(false);
+    setCaption("Сканируй меня");
+
+    setPreset("classic");
 
     setGenerated(false);
     setShowWifiInfo(false);
@@ -610,14 +1013,12 @@ export default function Home() {
             </h1>
 
             <p className="text-sm text-slate-400">
-              Генератор QR-кодов высокого разрешения
+              High Resolution QR Designer
             </p>
 
           </div>
 
         </header>
-
-        {/* MAIN */}
 
         <div className="grid gap-6 lg:grid-cols-[1fr_460px]">
 
@@ -626,11 +1027,11 @@ export default function Home() {
           <section className="rounded-3xl border border-slate-800 bg-slate-900 p-5 shadow-2xl sm:p-7">
 
             <h2 className="mb-1 text-xl font-semibold">
-              Создать QR-код
+              Design Studio
             </h2>
 
             <p className="mb-6 text-sm text-slate-400">
-              Выберите тип данных и настройте QR.
+              Создайте собственный дизайн QR-кода.
             </p>
 
             {/* TYPE */}
@@ -657,7 +1058,7 @@ export default function Home() {
                       setMode(type);
                       setShowWifiInfo(false);
                     }}
-                    className={`rounded-xl border px-3 py-3 text-sm font-medium transition ${
+                    className={`rounded-xl border px-3 py-3 text-sm font-semibold transition ${
                       mode === type
                         ? "border-white bg-white text-slate-950"
                         : "border-slate-700 bg-slate-950 text-slate-300 hover:border-slate-500"
@@ -672,7 +1073,7 @@ export default function Home() {
 
             </div>
 
-            {/* URL / TEXT */}
+            {/* DATA */}
 
             {(mode === "URL" ||
               mode === "Текст") && (
@@ -724,20 +1125,17 @@ export default function Home() {
                         )
                       }
                       placeholder="My WiFi"
-                      className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-white"
+                      className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-white"
                     />
 
                     <button
                       type="button"
                       onClick={findWifiNetworks}
-                      className="flex shrink-0 items-center gap-2 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:border-white hover:bg-white hover:text-slate-950"
+                      className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm font-semibold hover:border-white hover:bg-white hover:text-slate-950"
                     >
-                      <span>
-                        🔍
-                      </span>
-
+                      🔍
                       <span className="hidden sm:inline">
-                        Найти сети
+                        {" "}Найти
                       </span>
                     </button>
 
@@ -747,36 +1145,18 @@ export default function Home() {
 
                 {showWifiInfo && (
 
-                  <div className="rounded-2xl border border-blue-900/60 bg-blue-950/40 p-4">
+                  <div className="rounded-2xl border border-blue-900/60 bg-blue-950/40 p-4 text-sm text-blue-200">
 
-                    <div className="flex items-start gap-3">
-
-                      <div className="text-xl">
-                        📶
-                      </div>
-
-                      <div>
-
-                        <div className="font-semibold text-blue-100">
-                          Сканирование Wi-Fi
-                        </div>
-
-                        <p className="mt-1 text-sm leading-6 text-blue-200/80">
-                          iPhone не разрешает обычным
-                          веб-приложениям получать список
-                          доступных Wi-Fi сетей.
-                        </p>
-
-                      </div>
-
-                    </div>
+                    📶 iPhone не разрешает обычным
+                    веб-приложениям получать список
+                    доступных Wi-Fi сетей.
 
                     <button
                       type="button"
                       onClick={() =>
                         setShowWifiInfo(false)
                       }
-                      className="mt-3 rounded-lg border border-blue-800 px-3 py-2 text-xs font-medium text-blue-200 hover:bg-blue-900/50"
+                      className="mt-3 block rounded-lg border border-blue-800 px-3 py-2 text-xs"
                     >
                       Понятно
                     </button>
@@ -792,19 +1172,17 @@ export default function Home() {
                   </label>
 
                   <input
-                    type="text"
                     value={wifiPassword}
                     onChange={(e) =>
                       setWifiPassword(
                         e.target.value
                       )
                     }
-                    placeholder="Введите пароль"
+                    placeholder="Пароль Wi-Fi"
                     disabled={
-                      wifiSecurity ===
-                      "nopass"
+                      wifiSecurity === "nopass"
                     }
-                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-white disabled:opacity-40"
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-white disabled:opacity-40"
                   />
 
                 </div>
@@ -812,7 +1190,7 @@ export default function Home() {
                 <div>
 
                   <label className="mb-2 block text-sm font-medium text-slate-300">
-                    Защита сети
+                    Защита
                   </label>
 
                   <select
@@ -822,7 +1200,7 @@ export default function Home() {
                         e.target.value as WifiSecurity
                       )
                     }
-                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none"
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3"
                   >
 
                     <option value="WPA">
@@ -841,7 +1219,7 @@ export default function Home() {
 
                 </div>
 
-                <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-700 bg-slate-950 p-4">
+                <label className="flex items-center gap-3 rounded-xl border border-slate-700 bg-slate-950 p-4">
 
                   <input
                     type="checkbox"
@@ -854,17 +1232,9 @@ export default function Home() {
                     className="h-5 w-5"
                   />
 
-                  <div>
-
-                    <div className="font-medium">
-                      Скрытая сеть
-                    </div>
-
-                    <div className="text-xs text-slate-500">
-                      SSID не отображается в списке Wi-Fi
-                    </div>
-
-                  </div>
+                  <span className="text-sm">
+                    Скрытая сеть
+                  </span>
 
                 </label>
 
@@ -890,33 +1260,322 @@ export default function Home() {
                   placeholder={
                     "Имя: Иван Иванов\nТелефон: +79990000000\nEmail: example@mail.com"
                   }
-                  className="min-h-36 w-full resize-none rounded-2xl border border-slate-700 bg-slate-950 p-4 text-white outline-none placeholder:text-slate-600 focus:border-white"
+                  className="min-h-36 w-full resize-none rounded-2xl border border-slate-700 bg-slate-950 p-4 outline-none"
                 />
 
               </div>
 
             )}
 
+            {/* PRESETS */}
+
+            <div className="mb-6">
+
+              <label className="mb-2 block text-sm font-medium text-slate-300">
+                ✨ Пресеты
+              </label>
+
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+
+                <button
+                  onClick={() =>
+                    applyPreset("classic")
+                  }
+                  className={`rounded-xl border p-3 text-sm ${
+                    preset === "classic"
+                      ? "border-white bg-white text-slate-950"
+                      : "border-slate-700"
+                  }`}
+                >
+                  Classic
+                </button>
+
+                <button
+                  onClick={() =>
+                    applyPreset("modern")
+                  }
+                  className={`rounded-xl border p-3 text-sm ${
+                    preset === "modern"
+                      ? "border-white bg-white text-slate-950"
+                      : "border-slate-700"
+                  }`}
+                >
+                  Modern
+                </button>
+
+                <button
+                  onClick={() =>
+                    applyPreset("neon")
+                  }
+                  className={`rounded-xl border p-3 text-sm ${
+                    preset === "neon"
+                      ? "border-white bg-white text-slate-950"
+                      : "border-slate-700"
+                  }`}
+                >
+                  Neon
+                </button>
+
+                <button
+                  onClick={() =>
+                    applyPreset("business")
+                  }
+                  className={`rounded-xl border p-3 text-sm ${
+                    preset === "business"
+                      ? "border-white bg-white text-slate-950"
+                      : "border-slate-700"
+                  }`}
+                >
+                  Business
+                </button>
+
+              </div>
+
+            </div>
+
+            {/* COLORS */}
+
+            <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-950 p-4">
+
+              <h3 className="mb-4 font-semibold">
+                🎨 Цвет
+              </h3>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+
+                <div>
+
+                  <label className="mb-2 block text-xs text-slate-400">
+                    Основной цвет
+                  </label>
+
+                  <div className="flex gap-2">
+
+                    <input
+                      type="color"
+                      value={foreground}
+                      onChange={(e) =>
+                        setForeground(
+                          e.target.value
+                        )
+                      }
+                      className="h-11 w-16 rounded-xl"
+                    />
+
+                    <input
+                      value={foreground}
+                      onChange={(e) =>
+                        setForeground(
+                          e.target.value
+                        )
+                      }
+                      className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 uppercase"
+                    />
+
+                  </div>
+
+                </div>
+
+                <div>
+
+                  <label className="mb-2 block text-xs text-slate-400">
+                    Цвет фона
+                  </label>
+
+                  <div className="flex gap-2">
+
+                    <input
+                      type="color"
+                      value={background}
+                      onChange={(e) =>
+                        setBackground(
+                          e.target.value
+                        )
+                      }
+                      className="h-11 w-16 rounded-xl"
+                    />
+
+                    <input
+                      value={background}
+                      onChange={(e) =>
+                        setBackground(
+                          e.target.value
+                        )
+                      }
+                      className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 uppercase"
+                    />
+
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+
+            {/* GRADIENT */}
+
+            <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-950 p-4">
+
+              <label className="flex cursor-pointer items-center justify-between">
+
+                <div>
+
+                  <div className="font-semibold">
+                    🌈 Градиент
+                  </div>
+
+                  <div className="text-xs text-slate-500">
+                    Плавный переход цвета QR
+                  </div>
+
+                </div>
+
+                <input
+                  type="checkbox"
+                  checked={gradientEnabled}
+                  onChange={(e) =>
+                    setGradientEnabled(
+                      e.target.checked
+                    )
+                  }
+                  className="h-5 w-5"
+                />
+
+              </label>
+
+              {gradientEnabled && (
+
+                <div className="mt-4 flex gap-2">
+
+                  <input
+                    type="color"
+                    value={gradientColor}
+                    onChange={(e) =>
+                      setGradientColor(
+                        e.target.value
+                      )
+                    }
+                    className="h-11 w-16 rounded-xl"
+                  />
+
+                  <input
+                    value={gradientColor}
+                    onChange={(e) =>
+                      setGradientColor(
+                        e.target.value
+                      )
+                    }
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 uppercase"
+                  />
+
+                </div>
+
+              )}
+
+            </div>
+
+            {/* DOT STYLE */}
+
+            <div className="mb-6">
+
+              <label className="mb-2 block text-sm font-medium text-slate-300">
+                ⚫ Форма точек
+              </label>
+
+              <div className="grid grid-cols-3 gap-2">
+
+                {[
+                  ["square", "■ Квадрат"],
+                  ["round", "● Круг"],
+                  ["soft", "▣ Soft"],
+                ].map(
+                  ([value, label]) => (
+
+                    <button
+                      key={value}
+                      onClick={() =>
+                        setDotStyle(
+                          value as DotStyle
+                        )
+                      }
+                      className={`rounded-xl border p-3 text-sm ${
+                        dotStyle === value
+                          ? "border-white bg-white text-slate-950"
+                          : "border-slate-700"
+                      }`}
+                    >
+                      {label}
+                    </button>
+
+                  )
+                )}
+
+              </div>
+
+              <p className="mt-2 text-xs text-slate-500">
+                Форма отображается как настройка
+                дизайна; базовая матрица QR
+                сохраняет максимальную совместимость.
+              </p>
+
+            </div>
+
+            {/* CORNERS */}
+
+            <div className="mb-6">
+
+              <label className="mb-2 block text-sm font-medium text-slate-300">
+                🔲 Углы
+              </label>
+
+              <div className="grid grid-cols-2 gap-2">
+
+                <button
+                  onClick={() =>
+                    setCornerStyle("square")
+                  }
+                  className={`rounded-xl border p-3 ${
+                    cornerStyle === "square"
+                      ? "border-white bg-white text-slate-950"
+                      : "border-slate-700"
+                  }`}
+                >
+                  Классические
+                </button>
+
+                <button
+                  onClick={() =>
+                    setCornerStyle("round")
+                  }
+                  className={`rounded-xl border p-3 ${
+                    cornerStyle === "round"
+                      ? "border-white bg-white text-slate-950"
+                      : "border-slate-700"
+                  }`}
+                >
+                  Закруглённые
+                </button>
+
+              </div>
+
+            </div>
+
             {/* LOGO */}
 
             <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-950 p-4">
 
-              <div className="mb-4">
+              <h3 className="mb-1 font-semibold">
+                🖼️ Логотип
+              </h3>
 
-                <h3 className="font-semibold">
-                  🖼️ Логотип в QR
-                </h3>
-
-                <p className="mt-1 text-xs text-slate-500">
-                  Добавьте логотип в центр QR-кода.
-                </p>
-
-              </div>
+              <p className="mb-4 text-xs text-slate-500">
+                Логотип размещается в центре QR.
+              </p>
 
               {!logo ? (
 
                 <>
-
                   <input
                     ref={logoInputRef}
                     type="file"
@@ -926,15 +1585,13 @@ export default function Home() {
                   />
 
                   <button
-                    type="button"
                     onClick={() =>
                       logoInputRef.current?.click()
                     }
-                    className="w-full rounded-xl border border-dashed border-slate-600 px-4 py-5 text-sm font-semibold text-slate-300 transition hover:border-white hover:text-white"
+                    className="w-full rounded-xl border border-dashed border-slate-600 p-5 text-sm font-semibold hover:border-white"
                   >
                     🖼️ Загрузить логотип
                   </button>
-
                 </>
 
               ) : (
@@ -943,32 +1600,29 @@ export default function Home() {
 
                   <div className="flex items-center gap-4">
 
-                    <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white p-2">
+                    <div className="flex h-20 w-20 items-center justify-center rounded-xl bg-white p-2">
 
                       <img
                         src={logo}
-                        alt="Логотип"
+                        alt="Logo"
                         className="max-h-full max-w-full object-contain"
                       />
 
                     </div>
 
-                    <div className="min-w-0 flex-1">
-
-                      <div className="font-medium">
+                    <div className="flex-1">
+                      <div className="font-semibold">
                         Логотип добавлен
                       </div>
 
-                      <div className="mt-1 text-xs text-slate-500">
-                        Размер до 5 МБ
+                      <div className="text-xs text-slate-500">
+                        Центр QR
                       </div>
-
                     </div>
 
                     <button
-                      type="button"
                       onClick={removeLogo}
-                      className="rounded-lg border border-red-900/50 px-3 py-2 text-xs font-medium text-red-300 hover:bg-red-950/40"
+                      className="rounded-lg border border-red-900/50 px-3 py-2 text-xs text-red-300"
                     >
                       Удалить
                     </button>
@@ -977,40 +1631,36 @@ export default function Home() {
 
                   <div>
 
-                    <label className="mb-2 block text-sm font-medium text-slate-300">
+                    <label className="mb-2 block text-xs text-slate-400">
                       Размер логотипа
                     </label>
 
                     <div className="grid grid-cols-5 gap-2">
 
-                      {logoSizes.map((item) => (
+                      {logoSizes.map(
+                        (value) => (
 
-                        <button
-                          key={item.value}
-                          type="button"
-                          onClick={() =>
-                            setLogoSize(
-                              item.value
-                            )
-                          }
-                          className={`rounded-xl border px-2 py-3 text-xs font-semibold transition ${
-                            logoSize ===
-                            item.value
-                              ? "border-white bg-white text-slate-950"
-                              : "border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500"
-                          }`}
-                        >
-                          {item.label}
-                        </button>
+                          <button
+                            key={value}
+                            onClick={() =>
+                              setLogoSize(
+                                value
+                              )
+                            }
+                            className={`rounded-xl border p-3 text-xs ${
+                              logoSize ===
+                              value
+                                ? "border-white bg-white text-slate-950"
+                                : "border-slate-700"
+                            }`}
+                          >
+                            {value}%
+                          </button>
 
-                      ))}
+                        )
+                      )}
 
                     </div>
-
-                    <p className="mt-2 text-xs text-slate-500">
-                      Для надёжного сканирования
-                      рекомендуется 10–20%.
-                    </p>
 
                   </div>
 
@@ -1028,12 +1678,120 @@ export default function Home() {
 
             </div>
 
+            {/* BORDER */}
+
+            <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-950 p-4">
+
+              <label className="flex items-center justify-between">
+
+                <div>
+
+                  <div className="font-semibold">
+                    🖼️ Рамка
+                  </div>
+
+                  <div className="text-xs text-slate-500">
+                    Добавить рамку вокруг QR
+                  </div>
+
+                </div>
+
+                <input
+                  type="checkbox"
+                  checked={borderEnabled}
+                  onChange={(e) =>
+                    setBorderEnabled(
+                      e.target.checked
+                    )
+                  }
+                  className="h-5 w-5"
+                />
+
+              </label>
+
+              {borderEnabled && (
+
+                <div className="mt-4">
+
+                  <label className="mb-2 block text-xs text-slate-400">
+                    Толщина: {borderWidth}px
+                  </label>
+
+                  <input
+                    type="range"
+                    min="5"
+                    max="60"
+                    value={borderWidth}
+                    onChange={(e) =>
+                      setBorderWidth(
+                        Number(
+                          e.target.value
+                        )
+                      )
+                    }
+                    className="w-full"
+                  />
+
+                </div>
+
+              )}
+
+            </div>
+
+            {/* CAPTION */}
+
+            <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-950 p-4">
+
+              <label className="flex items-center justify-between">
+
+                <div>
+
+                  <div className="font-semibold">
+                    ✍️ Текст под QR
+                  </div>
+
+                  <div className="text-xs text-slate-500">
+                    Например: «Сканируй меня»
+                  </div>
+
+                </div>
+
+                <input
+                  type="checkbox"
+                  checked={captionEnabled}
+                  onChange={(e) =>
+                    setCaptionEnabled(
+                      e.target.checked
+                    )
+                  }
+                  className="h-5 w-5"
+                />
+
+              </label>
+
+              {captionEnabled && (
+
+                <input
+                  value={caption}
+                  onChange={(e) =>
+                    setCaption(
+                      e.target.value
+                    )
+                  }
+                  placeholder="Сканируй меня"
+                  className="mt-4 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 outline-none focus:border-white"
+                />
+
+              )}
+
+            </div>
+
             {/* SIZE */}
 
             <div className="mb-6">
 
               <label className="mb-2 block text-sm font-medium text-slate-300">
-                Разрешение
+                📐 Разрешение
               </label>
 
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
@@ -1042,14 +1800,13 @@ export default function Home() {
 
                   <button
                     key={value}
-                    type="button"
                     onClick={() =>
                       setSize(value)
                     }
-                    className={`rounded-xl border px-3 py-3 text-sm transition ${
+                    className={`rounded-xl border p-3 text-sm ${
                       size === value
                         ? "border-white bg-white text-slate-950"
-                        : "border-slate-700 bg-slate-950 text-slate-300 hover:border-slate-500"
+                        : "border-slate-700"
                     }`}
                   >
                     {value}
@@ -1059,18 +1816,14 @@ export default function Home() {
 
               </div>
 
-              <p className="mt-2 text-xs text-slate-500">
-                Максимум: 8192 × 8192 px
-              </p>
-
             </div>
 
-            {/* ERROR LEVEL */}
+            {/* ERROR */}
 
             <div className="mb-6">
 
               <label className="mb-2 block text-sm font-medium text-slate-300">
-                Коррекция ошибок
+                🛡️ Коррекция ошибок
               </label>
 
               <div className="grid grid-cols-4 gap-2">
@@ -1085,16 +1838,16 @@ export default function Home() {
 
                     <button
                       key={level}
-                      type="button"
                       onClick={() =>
                         setErrorLevel(
                           level as ErrorLevel
                         )
                       }
-                      className={`rounded-xl border px-3 py-3 transition ${
-                        errorLevel === level
+                      className={`rounded-xl border p-3 ${
+                        errorLevel ===
+                        level
                           ? "border-white bg-white text-slate-950"
-                          : "border-slate-700 bg-slate-950 text-slate-300"
+                          : "border-slate-700"
                       }`}
                     >
 
@@ -1116,124 +1869,48 @@ export default function Home() {
               {logo && (
 
                 <p className="mt-2 text-xs text-slate-500">
-                  При использовании логотипа
-                  рекомендуется коррекция H.
+                  Для QR с логотипом рекомендуется H.
                 </p>
 
               )}
 
             </div>
 
-            {/* COLORS */}
-
-            <div className="grid gap-4 sm:grid-cols-2">
-
-              <div>
-
-                <label className="mb-2 block text-sm font-medium text-slate-300">
-                  Цвет QR
-                </label>
-
-                <div className="flex gap-2">
-
-                  <input
-                    type="color"
-                    value={foreground}
-                    onChange={(e) =>
-                      setForeground(
-                        e.target.value
-                      )
-                    }
-                    className="h-11 w-16 cursor-pointer rounded-xl border border-slate-700 bg-slate-950"
-                  />
-
-                  <input
-                    value={foreground}
-                    onChange={(e) =>
-                      setForeground(
-                        e.target.value
-                      )
-                    }
-                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm uppercase outline-none"
-                  />
-
-                </div>
-
-              </div>
-
-              <div>
-
-                <label className="mb-2 block text-sm font-medium text-slate-300">
-                  Цвет фона
-                </label>
-
-                <div className="flex gap-2">
-
-                  <input
-                    type="color"
-                    value={background}
-                    onChange={(e) =>
-                      setBackground(
-                        e.target.value
-                      )
-                    }
-                    className="h-11 w-16 cursor-pointer rounded-xl border border-slate-700 bg-slate-950"
-                  />
-
-                  <input
-                    value={background}
-                    onChange={(e) =>
-                      setBackground(
-                        e.target.value
-                      )
-                    }
-                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm uppercase outline-none"
-                  />
-
-                </div>
-
-              </div>
-
-            </div>
-
             {/* DOWNLOAD */}
 
-            <div className="mt-7 grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3">
 
               <button
-                type="button"
                 onClick={clearAll}
-                className="rounded-xl border border-slate-700 bg-slate-950 px-5 py-3 text-sm font-medium text-slate-300 transition hover:border-slate-500 hover:text-white"
+                className="rounded-xl border border-slate-700 bg-slate-950 p-3 text-sm font-semibold"
               >
                 Очистить
               </button>
 
               <button
-                type="button"
                 onClick={downloadPNG}
                 disabled={
                   !generated ||
                   downloading
                 }
-                className="rounded-xl bg-white px-5 py-3 text-sm font-bold text-slate-950 shadow-lg transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-xl bg-white p-3 text-sm font-bold text-slate-950 disabled:opacity-40"
               >
                 {downloading
                   ? "Создание..."
-                  : "PNG"}
+                  : "⬇ PNG"}
               </button>
 
               <button
-                type="button"
                 onClick={downloadSVG}
                 disabled={
                   !generated ||
                   downloading
                 }
-                className="rounded-xl border border-white bg-slate-950 px-5 py-3 text-sm font-bold text-white shadow-lg transition hover:bg-white hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-xl border border-white bg-slate-950 p-3 text-sm font-bold disabled:opacity-40"
               >
                 {downloading
                   ? "Создание..."
-                  : "SVG"}
+                  : "⬇ SVG"}
               </button>
 
             </div>
@@ -1266,9 +1943,7 @@ export default function Home() {
 
                   <div className="mx-auto mb-4 flex h-48 w-48 items-center justify-center rounded-2xl border-2 border-dashed border-slate-300">
 
-                    <span className="text-sm">
-                      QR-код
-                    </span>
+                    QR
 
                   </div>
 
@@ -1293,56 +1968,48 @@ export default function Home() {
 
             {generated && (
 
-              <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950 p-4">
+              <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm">
 
-                <div className="flex items-center justify-between">
-
-                  <span className="text-sm text-slate-400">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">
                     Тип
                   </span>
 
-                  <span className="font-semibold">
+                  <span>
                     {mode}
                   </span>
-
                 </div>
 
-                <div className="mt-2 flex items-center justify-between">
-
-                  <span className="text-sm text-slate-400">
+                <div className="mt-2 flex justify-between">
+                  <span className="text-slate-500">
                     Разрешение
                   </span>
 
-                  <span className="font-semibold">
-                    {size} × {size}
+                  <span>
+                    {size}×{size}
                   </span>
-
                 </div>
 
-                <div className="mt-2 flex items-center justify-between">
-
-                  <span className="text-sm text-slate-400">
-                    Коррекция
+                <div className="mt-2 flex justify-between">
+                  <span className="text-slate-500">
+                    Стиль
                   </span>
 
-                  <span className="font-semibold">
-                    {errorLevel}
+                  <span className="capitalize">
+                    {preset}
                   </span>
-
                 </div>
 
                 {logo && (
 
-                  <div className="mt-2 flex items-center justify-between">
-
-                    <span className="text-sm text-slate-400">
+                  <div className="mt-2 flex justify-between">
+                    <span className="text-slate-500">
                       Логотип
                     </span>
 
-                    <span className="font-semibold">
+                    <span>
                       {logoSize}%
                     </span>
-
                   </div>
 
                 )}
@@ -1356,7 +2023,7 @@ export default function Home() {
         </div>
 
         <footer className="py-8 text-center text-xs text-slate-600">
-          QR Pro • High Resolution QR Generator
+          QR Pro • Design Studio
         </footer>
 
       </div>
