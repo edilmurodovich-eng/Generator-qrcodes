@@ -8,15 +8,21 @@
     "start": "next start",
     "lint": "eslint"
   },
+  "dependencies": {
+    "next": "16.1.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "qrcode": "1.5.4"
+  },
   "devDependencies": {
-  "@tailwindcss/postcss": "4.1.12",
-  "@types/node": "20.17.30",
-  "@types/qrcode": "^1.5.5",
-  "@types/react": "19.0.12",
-  "@types/react-dom": "19.0.4",
-  "eslint": "9.22.0",
-  "eslint-config-next": "16.1.0",
-  "tailwindcss": "4.1.12",
-  "typescript": "5.8.2"
-}
+    "@tailwindcss/postcss": "4.1.12",
+    "@types/node": "20.17.30",
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "19.0.12",
+    "@types/react-dom": "19.0.4",
+    "eslint": "9.22.0",
+    "eslint-config-next": "16.1.0",
+    "tailwindcss": "4.1.12",
+    "typescript": "5.8.2"
+  }
 }
