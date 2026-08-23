@@ -473,6 +473,21 @@ export default function Home() {
     return result.join(" ");
   }
 
+  function formatContactName(value: string) {
+  return value
+    .replace(/\s+/g, " ")
+    .split(" ")
+    .map((word) => {
+      if (!word) return "";
+
+      return (
+        word.charAt(0).toLocaleUpperCase("ru-RU") +
+        word.slice(1).toLocaleLowerCase("ru-RU")
+      );
+    })
+    .join(" ");
+}
+  
   function handlePhoneChange(
     value: string
   ) {
@@ -2402,7 +2417,7 @@ ${parts.join("\n")}
                     }
                     onChange={(e) =>
                       setContactName(
-                        e.target.value
+                         formatContactName(e.target.value)
                       )
                     }
                     placeholder="Иван Иванов"
