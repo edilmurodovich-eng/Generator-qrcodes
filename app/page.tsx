@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 
 const sizes = [512, 1024, 2048, 4096, 8192];
-
 const logoSizes = [10, 15, 20, 25, 30];
 
 type ErrorLevel = "L" | "M" | "Q" | "H";
@@ -12,6 +11,52 @@ type WifiSecurity = "WPA" | "WEP" | "nopass";
 type DotStyle = "square" | "round" | "soft";
 type CornerStyle = "square" | "round";
 type Preset = "classic" | "modern" | "neon" | "business";
+
+const countryCodes = [
+  { code: "+998", country: "🇺🇿 Узбекистан" },
+  { code: "+7", country: "🇷🇺 Россия / Казахстан" },
+  { code: "+49", country: "🇩🇪 Германия" },
+  { code: "+380", country: "🇺🇦 Украина" },
+  { code: "+375", country: "🇧🇾 Беларусь" },
+  { code: "+996", country: "🇰🇬 Кыргызстан" },
+  { code: "+992", country: "🇹🇯 Таджикистан" },
+  { code: "+993", country: "🇹🇲 Туркменистан" },
+  { code: "+971", country: "🇦🇪 ОАЭ" },
+  { code: "+90", country: "🇹🇷 Турция" },
+  { code: "+33", country: "🇫🇷 Франция" },
+  { code: "+39", country: "🇮🇹 Италия" },
+  { code: "+34", country: "🇪🇸 Испания" },
+  { code: "+44", country: "🇬🇧 Великобритания" },
+  { code: "+1", country: "🇺🇸 США / Канада" },
+  { code: "+86", country: "🇨🇳 Китай" },
+  { code: "+81", country: "🇯🇵 Япония" },
+  { code: "+82", country: "🇰🇷 Южная Корея" },
+  { code: "+91", country: "🇮🇳 Индия" },
+  { code: "+31", country: "🇳🇱 Нидерланды" },
+  { code: "+32", country: "🇧🇪 Бельгия" },
+  { code: "+41", country: "🇨🇭 Швейцария" },
+  { code: "+43", country: "🇦🇹 Австрия" },
+  { code: "+45", country: "🇩🇰 Дания" },
+  { code: "+46", country: "🇸🇪 Швеция" },
+  { code: "+47", country: "🇳🇴 Норвегия" },
+  { code: "+48", country: "🇵🇱 Польша" },
+  { code: "+351", country: "🇵🇹 Португалия" },
+  { code: "+30", country: "🇬🇷 Греция" },
+  { code: "+40", country: "🇷🇴 Румыния" },
+  { code: "+359", country: "🇧🇬 Болгария" },
+  { code: "+380", country: "🇺🇦 Украина" },
+  { code: "+972", country: "🇮🇱 Израиль" },
+  { code: "+974", country: "🇶🇦 Катар" },
+  { code: "+966", country: "🇸🇦 Саудовская Аравия" },
+  { code: "+994", country: "🇦🇿 Азербайджан" },
+  { code: "+995", country: "🇬🇪 Грузия" },
+  { code: "+98", country: "🇮🇷 Иран" },
+  { code: "+93", country: "🇦🇫 Афганистан" },
+  { code: "+92", country: "🇵🇰 Пакистан" },
+  { code: "+880", country: "🇧🇩 Бангладеш" },
+  { code: "+90", country: "🇹🇷 Турция" },
+  { code: "+20", country: "🇪🇬 Египет" },
+];
 
 type QRMatrix = {
   size: number;
@@ -30,6 +75,12 @@ export default function Home() {
   const [wifiSecurity, setWifiSecurity] =
     useState<WifiSecurity>("WPA");
   const [wifiHidden, setWifiHidden] = useState(false);
+
+  const [contactName, setContactName] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactCountryCode, setContactCountryCode] =
+    useState("+998");
 
   const [size, setSize] = useState(1024);
 
@@ -83,17 +134,27 @@ export default function Home() {
   const [showWifiInfo, setShowWifiInfo] =
     useState(false);
 
-  /*
-   * ----------------------------------------------------
-   * WIFI
-   * ----------------------------------------------------
-   */
+  function isValidEmail(email: string) {
+    if (!email.trim()) return true;
+
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+      email.trim()
+    );
+  }
 
   function escapeWifi(value: string) {
     return value.replace(
       /([\\;,:"])/g,
       "\\$1"
     );
+  }
+
+  function escapeVCard(value: string) {
+    return value
+      .replace(/\\/g, "\\\\")
+      .replace(/\n/g, "\\n")
+      .replace(/;/g, "\\;")
+      .replace(/,/g, "\\,");
   }
 
   function getQRText() {
@@ -105,16 +166,32 @@ export default function Home() {
       )};H:${wifiHidden ? "true" : "false"};;`;
     }
 
+    if (mode === "Контакт") {
+      if (
+        contactEmail.trim() &&
+        !isValidEmail(contactEmail)
+      ) {
+        return "";
+      }
+
+      const cleanPhone =
+        contactPhone.replace(/[^\d]/g, "");
+
+      const fullPhone =
+        `${contactCountryCode}${cleanPhone}`;
+
+      return `BEGIN:VCARD
+VERSION:3.0
+FN:${escapeVCard(contactName)}
+TEL:${fullPhone}
+EMAIL:${contactEmail.trim()}
+END:VCARD`;
+    }
+
     return text;
   }
 
   const qrText = getQRText();
-
-  /*
-   * ----------------------------------------------------
-   * COLOR
-   * ----------------------------------------------------
-   */
 
   function hexToRgb(hex: string) {
     const clean = hex.replace("#", "");
@@ -130,10 +207,7 @@ export default function Home() {
     };
   }
 
-  function getModuleColor(
-    x: number,
-    y: number
-  ) {
+  function getModuleColor(x: number, y: number) {
     if (!gradientEnabled) {
       return foreground;
     }
@@ -147,35 +221,23 @@ export default function Home() {
 
     const t = Math.max(
       0,
-      Math.min(
-        1,
-        (x + y) / 2
-      )
+      Math.min(1, (x + y) / 2)
     );
 
     const r = Math.round(
-      start.r +
-        (end.r - start.r) * t
+      start.r + (end.r - start.r) * t
     );
 
     const g = Math.round(
-      start.g +
-        (end.g - start.g) * t
+      start.g + (end.g - start.g) * t
     );
 
     const b = Math.round(
-      start.b +
-        (end.b - start.b) * t
+      start.b + (end.b - start.b) * t
     );
 
     return `rgb(${r}, ${g}, ${b})`;
   }
-
-  /*
-   * ----------------------------------------------------
-   * QR MATRIX
-   * ----------------------------------------------------
-   */
 
   function createMatrix(): QRMatrix | null {
     if (!qrText.trim()) {
@@ -183,12 +245,6 @@ export default function Home() {
     }
 
     try {
-      /*
-       * qrcode does not expose the matrix in its
-       * TypeScript declarations, therefore we use
-       * the runtime create() API.
-       */
-
       const qrCreator =
         QRCode as unknown as {
           create: (
@@ -231,22 +287,13 @@ export default function Home() {
     }
   }
 
-  /*
-   * ----------------------------------------------------
-   * FINDER PATTERN
-   * ----------------------------------------------------
-   */
-
   function isFinderArea(
     row: number,
     col: number,
     matrixSize: number
   ) {
     const areas = [
-      {
-        row: 0,
-        col: 0,
-      },
+      { row: 0, col: 0 },
       {
         row: 0,
         col: matrixSize - 7,
@@ -266,113 +313,6 @@ export default function Home() {
     );
   }
 
-  function drawFinder(
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    module: number,
-    color: string
-  ) {
-    const total = module * 7;
-
-    ctx.save();
-
-    /*
-     * Outer black shape
-     */
-
-    ctx.fillStyle = color;
-
-    if (cornerStyle === "round") {
-      roundRect(
-        ctx,
-        x,
-        y,
-        total,
-        total,
-        module * 1.2
-      );
-
-      ctx.fill();
-    } else {
-      ctx.fillRect(
-        x,
-        y,
-        total,
-        total
-      );
-    }
-
-    /*
-     * White middle
-     */
-
-    ctx.fillStyle =
-      background;
-
-    const inner = module * 5;
-    const innerX = x + module;
-    const innerY = y + module;
-
-    if (cornerStyle === "round") {
-      roundRect(
-        ctx,
-        innerX,
-        innerY,
-        inner,
-        inner,
-        module
-      );
-
-      ctx.fill();
-    } else {
-      ctx.fillRect(
-        innerX,
-        innerY,
-        inner,
-        inner
-      );
-    }
-
-    /*
-     * Black center
-     */
-
-    ctx.fillStyle = color;
-
-    const center = module * 3;
-    const centerX = x + module * 2;
-    const centerY = y + module * 2;
-
-    if (cornerStyle === "round") {
-      roundRect(
-        ctx,
-        centerX,
-        centerY,
-        center,
-        center,
-        module * 0.8
-      );
-
-      ctx.fill();
-    } else {
-      ctx.fillRect(
-        centerX,
-        centerY,
-        center,
-        center
-      );
-    }
-
-    ctx.restore();
-  }
-
-  /*
-   * ----------------------------------------------------
-   * ROUNDED RECT
-   * ----------------------------------------------------
-   */
-
   function roundRect(
     ctx: CanvasRenderingContext2D,
     x: number,
@@ -389,15 +329,8 @@ export default function Home() {
 
     ctx.beginPath();
 
-    ctx.moveTo(
-      x + r,
-      y
-    );
-
-    ctx.lineTo(
-      x + width - r,
-      y
-    );
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + width - r, y);
 
     ctx.quadraticCurveTo(
       x + width,
@@ -430,10 +363,7 @@ export default function Home() {
       y + height - r
     );
 
-    ctx.lineTo(
-      x,
-      y + r
-    );
+    ctx.lineTo(x, y + r);
 
     ctx.quadraticCurveTo(
       x,
@@ -445,11 +375,86 @@ export default function Home() {
     ctx.closePath();
   }
 
-  /*
-   * ----------------------------------------------------
-   * DRAW MODULE
-   * ----------------------------------------------------
-   */
+  function drawFinder(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    module: number,
+    color: string
+  ) {
+    const total = module * 7;
+
+    ctx.save();
+
+    ctx.fillStyle = color;
+
+    if (cornerStyle === "round") {
+      roundRect(
+        ctx,
+        x,
+        y,
+        total,
+        total,
+        module * 1.2
+      );
+      ctx.fill();
+    } else {
+      ctx.fillRect(
+        x,
+        y,
+        total,
+        total
+      );
+    }
+
+    ctx.fillStyle = background;
+
+    const inner = module * 5;
+
+    if (cornerStyle === "round") {
+      roundRect(
+        ctx,
+        x + module,
+        y + module,
+        inner,
+        inner,
+        module
+      );
+      ctx.fill();
+    } else {
+      ctx.fillRect(
+        x + module,
+        y + module,
+        inner,
+        inner
+      );
+    }
+
+    ctx.fillStyle = color;
+
+    const center = module * 3;
+
+    if (cornerStyle === "round") {
+      roundRect(
+        ctx,
+        x + module * 2,
+        y + module * 2,
+        center,
+        center,
+        module * 0.8
+      );
+      ctx.fill();
+    } else {
+      ctx.fillRect(
+        x + module * 2,
+        y + module * 2,
+        center,
+        center
+      );
+    }
+
+    ctx.restore();
+  }
 
   function drawModule(
     ctx: CanvasRenderingContext2D,
@@ -466,8 +471,7 @@ export default function Home() {
     const px = x + gap;
     const py = y + gap;
 
-    const width =
-      module - gap * 2;
+    const width = module - gap * 2;
 
     ctx.fillStyle = color;
 
@@ -478,7 +482,6 @@ export default function Home() {
         width,
         width
       );
-
       return;
     }
 
@@ -494,13 +497,8 @@ export default function Home() {
       );
 
       ctx.fill();
-
       return;
     }
-
-    /*
-     * SOFT
-     */
 
     roundRect(
       ctx,
@@ -514,11 +512,99 @@ export default function Home() {
     ctx.fill();
   }
 
-  /*
-   * ----------------------------------------------------
-   * DRAW QR
-   * ----------------------------------------------------
-   */
+  async function drawLogo(
+    ctx: CanvasRenderingContext2D,
+    qrArea: number
+  ) {
+    if (!logo) return;
+
+    await new Promise<void>(
+      (resolve) => {
+        const image = new Image();
+
+        image.onload = () => {
+          const logoPixels =
+            qrArea *
+            (logoSize / 100);
+
+          const x =
+            (size - logoPixels) / 2;
+
+          const y =
+            (qrArea - logoPixels) / 2;
+
+          const padding =
+            logoPixels * 0.13;
+
+          ctx.save();
+
+          ctx.fillStyle =
+            background;
+
+          roundRect(
+            ctx,
+            x - padding,
+            y - padding,
+            logoPixels +
+              padding * 2,
+            logoPixels +
+              padding * 2,
+            logoPixels * 0.14
+          );
+
+          ctx.fill();
+
+          ctx.drawImage(
+            image,
+            x,
+            y,
+            logoPixels,
+            logoPixels
+          );
+
+          ctx.restore();
+
+          resolve();
+        };
+
+        image.onerror = () =>
+          resolve();
+
+        image.src = logo;
+      }
+    );
+  }
+
+  function drawCaption(
+    ctx: CanvasRenderingContext2D,
+    qrArea: number
+  ) {
+    const fontSize =
+      Math.max(
+        20,
+        Math.floor(size * 0.032)
+      );
+
+    ctx.save();
+
+    ctx.fillStyle =
+      foreground;
+
+    ctx.font =
+      `700 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    ctx.fillText(
+      caption,
+      size / 2,
+      qrArea +
+        (size - qrArea) / 2
+    );
+
+    ctx.restore();
+  }
 
   async function renderQR() {
     const canvas =
@@ -537,12 +623,6 @@ export default function Home() {
       return;
     }
 
-    /*
-     * QR area.
-     *
-     * Caption occupies bottom part.
-     */
-
     const captionSpace =
       captionEnabled
         ? Math.floor(size * 0.12)
@@ -558,10 +638,6 @@ export default function Home() {
       canvas.getContext("2d");
 
     if (!ctx) return;
-
-    /*
-     * Background.
-     */
 
     ctx.clearRect(
       0,
@@ -580,32 +656,17 @@ export default function Home() {
       size
     );
 
-    /*
-     * Quiet zone.
-     *
-     * We leave enough white space around
-     * the QR matrix for reliable scanning.
-     */
-
     const quiet =
       Math.max(
         12,
-        Math.floor(
-          size * 0.035
-        )
+        Math.floor(size * 0.035)
       );
 
     const available =
-      qrArea -
-      quiet * 2;
+      qrArea - quiet * 2;
 
     const module =
-      available /
-      matrix.size;
-
-    /*
-     * Draw data modules.
-     */
+      available / matrix.size;
 
     for (
       let row = 0;
@@ -617,19 +678,14 @@ export default function Home() {
         col < matrix.size;
         col++
       ) {
-        const dark =
-          matrix.get(
+        if (
+          !matrix.get(
             row,
             col
-          );
-
-        if (!dark) {
+          )
+        ) {
           continue;
         }
-
-        /*
-         * Finder patterns are drawn separately.
-         */
 
         if (
           isFinderArea(
@@ -673,21 +729,12 @@ export default function Home() {
       }
     }
 
-    /*
-     * Finder patterns.
-     */
-
-    const finderColor =
-      gradientEnabled
-        ? foreground
-        : foreground;
-
     drawFinder(
       ctx,
       quiet,
       quiet,
       module,
-      finderColor
+      foreground
     );
 
     drawFinder(
@@ -697,7 +744,7 @@ export default function Home() {
           module,
       quiet,
       module,
-      finderColor
+      foreground
     );
 
     drawFinder(
@@ -707,12 +754,8 @@ export default function Home() {
         (matrix.size - 7) *
           module,
       module,
-      finderColor
+      foreground
     );
-
-    /*
-     * Border.
-     */
 
     if (borderEnabled) {
       ctx.save();
@@ -728,18 +771,12 @@ export default function Home() {
       ctx.strokeRect(
         borderWidth / 2,
         borderWidth / 2,
-        size -
-          borderWidth,
-        qrArea -
-          borderWidth
+        size - borderWidth,
+        qrArea - borderWidth
       );
 
       ctx.restore();
     }
-
-    /*
-     * Logo.
-     */
 
     if (logo) {
       await drawLogo(
@@ -747,10 +784,6 @@ export default function Home() {
         qrArea
       );
     }
-
-    /*
-     * Caption.
-     */
 
     if (captionEnabled) {
       drawCaption(
@@ -761,715 +794,6 @@ export default function Home() {
 
     setGenerated(true);
   }
-
-  /*
-   * ----------------------------------------------------
-   * LOGO
-   * ----------------------------------------------------
-   */
-
-  async function drawLogo(
-    ctx: CanvasRenderingContext2D,
-    qrArea: number
-  ) {
-    if (!logo) return;
-
-    await new Promise<void>(
-      (resolve) => {
-        const image =
-          new Image();
-
-        image.onload = () => {
-          const logoPixels =
-            qrArea *
-            (logoSize / 100);
-
-          const x =
-            (size -
-              logoPixels) /
-            2;
-
-          const y =
-            (qrArea -
-              logoPixels) /
-            2;
-
-          const padding =
-            logoPixels *
-            0.13;
-
-          /*
-           * White protection area.
-           */
-
-          ctx.save();
-
-          ctx.fillStyle =
-            background;
-
-          roundRect(
-            ctx,
-            x - padding,
-            y - padding,
-            logoPixels +
-              padding * 2,
-            logoPixels +
-              padding * 2,
-            logoPixels * 0.14
-          );
-
-          ctx.fill();
-
-          /*
-           * Logo.
-           */
-
-          ctx.drawImage(
-            image,
-            x,
-            y,
-            logoPixels,
-            logoPixels
-          );
-
-          ctx.restore();
-
-          resolve();
-        };
-
-        image.onerror = () =>
-          resolve();
-
-        image.src = logo;
-      }
-    );
-  }
-
-  /*
-   * ----------------------------------------------------
-   * CAPTION
-   * ----------------------------------------------------
-   */
-
-  function drawCaption(
-    ctx: CanvasRenderingContext2D,
-    qrArea: number
-  ) {
-    const fontSize =
-      Math.max(
-        20,
-        Math.floor(
-          size * 0.032
-        )
-      );
-
-    ctx.save();
-
-    ctx.fillStyle =
-      foreground;
-
-    ctx.font =
-      `700 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
-
-    ctx.textAlign =
-      "center";
-
-    ctx.textBaseline =
-      "middle";
-
-    ctx.fillText(
-      caption,
-      size / 2,
-      qrArea +
-        (size - qrArea) / 2
-    );
-
-    ctx.restore();
-  }
-
-  /*
-   * ----------------------------------------------------
-   * PRESETS
-   * ----------------------------------------------------
-   */
-
-  function applyPreset(
-    value: Preset
-  ) {
-    setPreset(value);
-
-    if (value === "classic") {
-      setForeground("#000000");
-      setBackground("#ffffff");
-      setGradientEnabled(false);
-      setDotStyle("square");
-      setCornerStyle("square");
-      setBorderEnabled(false);
-      setCaptionEnabled(false);
-    }
-
-    if (value === "modern") {
-      setForeground("#111827");
-      setBackground("#ffffff");
-      setGradientEnabled(true);
-      setGradientColor("#6366f1");
-      setDotStyle("soft");
-      setCornerStyle("round");
-      setBorderEnabled(false);
-      setCaptionEnabled(false);
-    }
-
-    if (value === "neon") {
-      setForeground("#7c3aed");
-      setBackground("#050505");
-      setGradientEnabled(true);
-      setGradientColor("#06b6d4");
-      setDotStyle("round");
-      setCornerStyle("round");
-      setBorderEnabled(true);
-      setBorderWidth(20);
-      setCaptionEnabled(true);
-      setCaption("SCAN ME");
-    }
-
-    if (value === "business") {
-      setForeground("#111111");
-      setBackground("#ffffff");
-      setGradientEnabled(false);
-      setDotStyle("soft");
-      setCornerStyle("round");
-      setBorderEnabled(true);
-      setBorderWidth(18);
-      setCaptionEnabled(true);
-      setCaption("Сканируй меня");
-    }
-  }
-
-  /*
-   * ----------------------------------------------------
-   * LOGO UPLOAD
-   * ----------------------------------------------------
-   */
-
-  function handleLogoUpload(
-    event: React.ChangeEvent<HTMLInputElement>
-  ) {
-    const file =
-      event.target.files?.[0];
-
-    if (!file) return;
-
-    setLogoError("");
-
-    if (
-      !file.type.startsWith(
-        "image/"
-      )
-    ) {
-      setLogoError(
-        "Можно загружать только изображения."
-      );
-      return;
-    }
-
-    if (
-      file.size >
-      5 * 1024 * 1024
-    ) {
-      setLogoError(
-        "Размер логотипа не должен превышать 5 МБ."
-      );
-      return;
-    }
-
-    const reader =
-      new FileReader();
-
-    reader.onload = () => {
-      if (
-        typeof reader.result ===
-        "string"
-      ) {
-        setLogo(
-          reader.result
-        );
-      }
-    };
-
-    reader.onerror = () => {
-      setLogoError(
-        "Не удалось загрузить логотип."
-      );
-    };
-
-    reader.readAsDataURL(
-      file
-    );
-  }
-
-  function removeLogo() {
-    setLogo(null);
-    setLogoError("");
-
-    if (
-      logoInputRef.current
-    ) {
-      logoInputRef.current.value =
-        "";
-    }
-  }
-
-  /*
-   * ----------------------------------------------------
-   * GENERATION
-   * ----------------------------------------------------
-   */
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function run() {
-      if (
-        !qrText.trim()
-      ) {
-        setGenerated(false);
-        return;
-      }
-
-      try {
-        if (!cancelled) {
-          await renderQR();
-        }
-      } catch (error) {
-        console.error(
-          "QR render error:",
-          error
-        );
-
-        if (!cancelled) {
-          setGenerated(false);
-        }
-      }
-    }
-
-    run();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    qrText,
-    size,
-    foreground,
-    background,
-    gradientEnabled,
-    gradientColor,
-    dotStyle,
-    cornerStyle,
-    borderEnabled,
-    borderWidth,
-    captionEnabled,
-    caption,
-    errorLevel,
-    logo,
-    logoSize,
-  ]);
-
-  /*
-   * ----------------------------------------------------
-   * PNG
-   * ----------------------------------------------------
-   */
-
-  async function downloadPNG() {
-    if (!qrText.trim()) return;
-
-    try {
-      setDownloading(true);
-
-      await renderQR();
-
-      const canvas =
-        canvasRef.current;
-
-      if (!canvas) {
-        throw new Error(
-          "Canvas unavailable"
-        );
-      }
-
-      const dataUrl =
-        canvas.toDataURL(
-          "image/png"
-        );
-
-      /*
-       * Direct download.
-       */
-
-      const link =
-        document.createElement(
-          "a"
-        );
-
-      link.href = dataUrl;
-
-      link.download =
-        `qr-pro-${size}x${size}.png`;
-
-      document.body.appendChild(
-        link
-      );
-
-      link.click();
-
-      document.body.removeChild(
-        link
-      );
-    } catch (error) {
-      console.error(
-        error
-      );
-
-      alert(
-        "Не удалось создать PNG."
-      );
-    } finally {
-      setDownloading(false);
-    }
-  }
-
-  /*
-   * ----------------------------------------------------
-   * SVG
-   * ----------------------------------------------------
-   */
-
-  async function downloadSVG() {
-    if (!qrText.trim()) return;
-
-    try {
-      setDownloading(true);
-
-      const matrix =
-        createMatrix();
-
-      if (!matrix) {
-        throw new Error(
-          "Matrix unavailable"
-        );
-      }
-
-      const captionSpace =
-        captionEnabled
-          ? Math.floor(
-              size * 0.12
-            )
-          : 0;
-
-      const qrArea =
-        size -
-        captionSpace;
-
-      const quiet =
-        Math.max(
-          12,
-          Math.floor(
-            size * 0.035
-          )
-        );
-
-      const available =
-        qrArea -
-        quiet * 2;
-
-      const module =
-        available /
-        matrix.size;
-
-      const parts: string[] =
-        [];
-
-      /*
-       * Background.
-       */
-
-      parts.push(
-        `<rect x="0" y="0" width="${size}" height="${size}" fill="${escapeXml(
-          background
-        )}"/>`
-      );
-
-      /*
-       * Data modules.
-       */
-
-      for (
-        let row = 0;
-        row < matrix.size;
-        row++
-      ) {
-        for (
-          let col = 0;
-          col < matrix.size;
-          col++
-        ) {
-          if (
-            !matrix.get(
-              row,
-              col
-            )
-          ) {
-            continue;
-          }
-
-          if (
-            isFinderArea(
-              row,
-              col,
-              matrix.size
-            )
-          ) {
-            continue;
-          }
-
-          const x =
-            quiet +
-            col * module;
-
-          const y =
-            quiet +
-            row * module;
-
-          const color =
-            getModuleColor(
-              col /
-                Math.max(
-                  1,
-                  matrix.size -
-                    1
-                ),
-              row /
-                Math.max(
-                  1,
-                  matrix.size -
-                    1
-                )
-            );
-
-          parts.push(
-            createSvgModule(
-              x,
-              y,
-              module,
-              color
-            )
-          );
-        }
-      }
-
-      /*
-       * Finder patterns.
-       */
-
-      parts.push(
-        createSvgFinder(
-          quiet,
-          quiet,
-          module,
-          foreground
-        )
-      );
-
-      parts.push(
-        createSvgFinder(
-          quiet +
-            (matrix.size - 7) *
-              module,
-          quiet,
-          module,
-          foreground
-        )
-      );
-
-      parts.push(
-        createSvgFinder(
-          quiet,
-          quiet +
-            (matrix.size - 7) *
-              module,
-          module,
-          foreground
-        )
-      );
-
-      /*
-       * Border.
-       */
-
-      if (borderEnabled) {
-        parts.push(
-          `<rect x="${borderWidth / 2}" y="${
-            borderWidth / 2
-          }" width="${
-            size - borderWidth
-          }" height="${
-            qrArea - borderWidth
-          }" fill="none" stroke="${
-            gradientEnabled
-              ? gradientColor
-              : foreground
-          }" stroke-width="${borderWidth}"/>`
-        );
-      }
-
-      /*
-       * Logo.
-       */
-
-      if (logo) {
-        const logoPixels =
-          qrArea *
-          (logoSize / 100);
-
-        const x =
-          (size -
-            logoPixels) /
-          2;
-
-        const y =
-          (qrArea -
-            logoPixels) /
-          2;
-
-        const padding =
-          logoPixels *
-          0.13;
-
-        parts.push(
-          `<rect x="${
-            x - padding
-          }" y="${
-            y - padding
-          }" width="${
-            logoPixels +
-            padding * 2
-          }" height="${
-            logoPixels +
-            padding * 2
-          }" rx="${
-            logoPixels * 0.14
-          }" fill="${escapeXml(
-            background
-          )}"/>`
-        );
-
-        parts.push(
-          `<image href="${escapeXml(
-            logo
-          )}" x="${x}" y="${y}" width="${logoPixels}" height="${logoPixels}" preserveAspectRatio="xMidYMid meet"/>`
-        );
-      }
-
-      /*
-       * Caption.
-       */
-
-      if (
-        captionEnabled
-      ) {
-        const fontSize =
-          Math.max(
-            20,
-            Math.floor(
-              size * 0.032
-            )
-          );
-
-        parts.push(
-          `<text x="${
-            size / 2
-          }" y="${
-            qrArea +
-            (size -
-              qrArea) /
-              2
-          }" text-anchor="middle" dominant-baseline="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif" font-size="${fontSize}" font-weight="700" fill="${escapeXml(
-            foreground
-          )}">${escapeXml(
-            caption
-          )}</text>`
-        );
-      }
-
-      const svg = `
-<svg xmlns="http://www.w3.org/2000/svg"
-     width="${size}"
-     height="${size}"
-     viewBox="0 0 ${size} ${size}">
-${parts.join("\n")}
-</svg>`;
-
-      const blob =
-        new Blob(
-          [svg],
-          {
-            type:
-              "image/svg+xml;charset=utf-8",
-          }
-        );
-
-      const url =
-        URL.createObjectURL(
-          blob
-        );
-
-      const link =
-        document.createElement(
-          "a"
-        );
-
-      link.href = url;
-
-      link.download =
-        `qr-pro-${size}x${size}.svg`;
-
-      document.body.appendChild(
-        link
-      );
-
-      link.click();
-
-      document.body.removeChild(
-        link
-      );
-
-      setTimeout(
-        () =>
-          URL.revokeObjectURL(
-            url
-          ),
-        1000
-      );
-    } catch (error) {
-      console.error(
-        "SVG error:",
-        error
-      );
-
-      alert(
-        "Не удалось создать SVG."
-      );
-    } finally {
-      setDownloading(false);
-    }
-  }
-
-  /*
-   * ----------------------------------------------------
-   * SVG MODULE
-   * ----------------------------------------------------
-   */
 
   function createSvgModule(
     x: number,
@@ -1482,27 +806,19 @@ ${parts.join("\n")}
         ? module * 0.08
         : 0;
 
-    const px =
-      x + gap;
-
-    const py =
-      y + gap;
+    const px = x + gap;
+    const py = y + gap;
 
     const width =
-      module -
-      gap * 2;
+      module - gap * 2;
 
-    if (
-      dotStyle === "square"
-    ) {
+    if (dotStyle === "square") {
       return `<rect x="${px}" y="${py}" width="${width}" height="${width}" fill="${escapeXml(
         color
       )}"/>`;
     }
 
-    if (
-      dotStyle === "round"
-    ) {
+    if (dotStyle === "round") {
       return `<circle cx="${
         x + module / 2
       }" cy="${
@@ -1520,12 +836,6 @@ ${parts.join("\n")}
       color
     )}"/>`;
   }
-
-  /*
-   * ----------------------------------------------------
-   * SVG FINDER
-   * ----------------------------------------------------
-   */
 
   function createSvgFinder(
     x: number,
@@ -1583,37 +893,453 @@ ${parts.join("\n")}
   fill="${escapeXml(color)}"/>`;
   }
 
-  function escapeXml(
-    value: string
-  ) {
+  function escapeXml(value: string) {
     return value
-      .replace(
-        /&/g,
-        "&amp;"
-      )
-      .replace(
-        /</g,
-        "&lt;"
-      )
-      .replace(
-        />/g,
-        "&gt;"
-      )
-      .replace(
-        /"/g,
-        "&quot;"
-      )
-      .replace(
-        /'/g,
-        "&apos;"
-      );
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&apos;");
   }
 
-  /*
-   * ----------------------------------------------------
-   * CLEAR
-   * ----------------------------------------------------
-   */
+  async function downloadPNG() {
+    if (!qrText.trim()) return;
+
+    try {
+      setDownloading(true);
+
+      await renderQR();
+
+      const canvas =
+        canvasRef.current;
+
+      if (!canvas) {
+        throw new Error(
+          "Canvas unavailable"
+        );
+      }
+
+      const dataUrl =
+        canvas.toDataURL(
+          "image/png"
+        );
+
+      const link =
+        document.createElement("a");
+
+      link.href = dataUrl;
+
+      link.download =
+        `qr-pro-${size}x${size}.png`;
+
+      document.body.appendChild(
+        link
+      );
+
+      link.click();
+
+      document.body.removeChild(
+        link
+      );
+    } catch (error) {
+      console.error(error);
+
+      alert(
+        "Не удалось создать PNG."
+      );
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  async function downloadSVG() {
+    if (!qrText.trim()) return;
+
+    try {
+      setDownloading(true);
+
+      const matrix =
+        createMatrix();
+
+      if (!matrix) {
+        throw new Error(
+          "Matrix unavailable"
+        );
+      }
+
+      const captionSpace =
+        captionEnabled
+          ? Math.floor(size * 0.12)
+          : 0;
+
+      const qrArea =
+        size - captionSpace;
+
+      const quiet =
+        Math.max(
+          12,
+          Math.floor(size * 0.035)
+        );
+
+      const available =
+        qrArea - quiet * 2;
+
+      const module =
+        available / matrix.size;
+
+      const parts: string[] = [];
+
+      parts.push(
+        `<rect x="0" y="0" width="${size}" height="${size}" fill="${escapeXml(
+          background
+        )}"/>`
+      );
+
+      for (
+        let row = 0;
+        row < matrix.size;
+        row++
+      ) {
+        for (
+          let col = 0;
+          col < matrix.size;
+          col++
+        ) {
+          if (
+            !matrix.get(
+              row,
+              col
+            )
+          ) {
+            continue;
+          }
+
+          if (
+            isFinderArea(
+              row,
+              col,
+              matrix.size
+            )
+          ) {
+            continue;
+          }
+
+          const x =
+            quiet +
+            col * module;
+
+          const y =
+            quiet +
+            row * module;
+
+          const color =
+            getModuleColor(
+              col /
+                Math.max(
+                  1,
+                  matrix.size - 1
+                ),
+              row /
+                Math.max(
+                  1,
+                  matrix.size - 1
+                )
+            );
+
+          parts.push(
+            createSvgModule(
+              x,
+              y,
+              module,
+              color
+            )
+          );
+        }
+      }
+
+      parts.push(
+        createSvgFinder(
+          quiet,
+          quiet,
+          module,
+          foreground
+        )
+      );
+
+      parts.push(
+        createSvgFinder(
+          quiet +
+            (matrix.size - 7) *
+              module,
+          quiet,
+          module,
+          foreground
+        )
+      );
+
+      parts.push(
+        createSvgFinder(
+          quiet,
+          quiet +
+            (matrix.size - 7) *
+              module,
+          module,
+          foreground
+        )
+      );
+
+      if (borderEnabled) {
+        parts.push(
+          `<rect x="${
+            borderWidth / 2
+          }" y="${
+            borderWidth / 2
+          }" width="${
+            size - borderWidth
+          }" height="${
+            qrArea - borderWidth
+          }" fill="none" stroke="${
+            gradientEnabled
+              ? gradientColor
+              : foreground
+          }" stroke-width="${borderWidth}"/>`
+        );
+      }
+
+      if (logo) {
+        const logoPixels =
+          qrArea *
+          (logoSize / 100);
+
+        const x =
+          (size - logoPixels) / 2;
+
+        const y =
+          (qrArea - logoPixels) / 2;
+
+        const padding =
+          logoPixels * 0.13;
+
+        parts.push(
+          `<rect x="${
+            x - padding
+          }" y="${
+            y - padding
+          }" width="${
+            logoPixels +
+            padding * 2
+          }" height="${
+            logoPixels +
+            padding * 2
+          }" rx="${
+            logoPixels * 0.14
+          }" fill="${escapeXml(
+            background
+          )}"/>`
+        );
+
+        parts.push(
+          `<image href="${escapeXml(
+            logo
+          )}" x="${x}" y="${y}" width="${logoPixels}" height="${logoPixels}" preserveAspectRatio="xMidYMid meet"/>`
+        );
+      }
+
+      if (captionEnabled) {
+        const fontSize =
+          Math.max(
+            20,
+            Math.floor(
+              size * 0.032
+            )
+          );
+
+        parts.push(
+          `<text x="${
+            size / 2
+          }" y="${
+            qrArea +
+            (size - qrArea) / 2
+          }" text-anchor="middle" dominant-baseline="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif" font-size="${fontSize}" font-weight="700" fill="${escapeXml(
+            foreground
+          )}">${escapeXml(
+            caption
+          )}</text>`
+        );
+      }
+
+      const svg = `
+<svg xmlns="http://www.w3.org/2000/svg"
+width="${size}"
+height="${size}"
+viewBox="0 0 ${size} ${size}">
+${parts.join("\n")}
+</svg>`;
+
+      const blob =
+        new Blob(
+          [svg],
+          {
+            type:
+              "image/svg+xml;charset=utf-8",
+          }
+        );
+
+      const url =
+        URL.createObjectURL(
+          blob
+        );
+
+      const link =
+        document.createElement("a");
+
+      link.href = url;
+
+      link.download =
+        `qr-pro-${size}x${size}.svg`;
+
+      document.body.appendChild(
+        link
+      );
+
+      link.click();
+
+      document.body.removeChild(
+        link
+      );
+
+      setTimeout(
+        () =>
+          URL.revokeObjectURL(url),
+        1000
+      );
+    } catch (error) {
+      console.error(
+        "SVG error:",
+        error
+      );
+
+      alert(
+        "Не удалось создать SVG."
+      );
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  function handleLogoUpload(
+    event: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const file =
+      event.target.files?.[0];
+
+    if (!file) return;
+
+    setLogoError("");
+
+    if (
+      !file.type.startsWith("image/")
+    ) {
+      setLogoError(
+        "Можно загружать только изображения."
+      );
+      return;
+    }
+
+    if (
+      file.size >
+      5 * 1024 * 1024
+    ) {
+      setLogoError(
+        "Размер логотипа не должен превышать 5 МБ."
+      );
+      return;
+    }
+
+    const reader =
+      new FileReader();
+
+    reader.onload = () => {
+      if (
+        typeof reader.result ===
+        "string"
+      ) {
+        setLogo(
+          reader.result
+        );
+      }
+    };
+
+    reader.onerror = () => {
+      setLogoError(
+        "Не удалось загрузить логотип."
+      );
+    };
+
+    reader.readAsDataURL(file);
+  }
+
+  function removeLogo() {
+    setLogo(null);
+    setLogoError("");
+
+    if (logoInputRef.current) {
+      logoInputRef.current.value =
+        "";
+    }
+  }
+
+  function applyPreset(
+    value: Preset
+  ) {
+    setPreset(value);
+
+    if (value === "classic") {
+      setForeground("#000000");
+      setBackground("#ffffff");
+      setGradientEnabled(false);
+      setDotStyle("square");
+      setCornerStyle("square");
+      setBorderEnabled(false);
+      setCaptionEnabled(false);
+    }
+
+    if (value === "modern") {
+      setForeground("#111827");
+      setBackground("#ffffff");
+      setGradientEnabled(true);
+      setGradientColor("#6366f1");
+      setDotStyle("soft");
+      setCornerStyle("round");
+      setBorderEnabled(false);
+      setCaptionEnabled(false);
+    }
+
+    if (value === "neon") {
+      setForeground("#7c3aed");
+      setBackground("#050505");
+      setGradientEnabled(true);
+      setGradientColor("#06b6d4");
+      setDotStyle("round");
+      setCornerStyle("round");
+      setBorderEnabled(true);
+      setBorderWidth(20);
+      setCaptionEnabled(true);
+      setCaption("SCAN ME");
+    }
+
+    if (value === "business") {
+      setForeground("#111111");
+      setBackground("#ffffff");
+      setGradientEnabled(false);
+      setDotStyle("soft");
+      setCornerStyle("round");
+      setBorderEnabled(true);
+      setBorderWidth(18);
+      setCaptionEnabled(true);
+      setCaption("Сканируй меня");
+    }
+  }
 
   function clearAll() {
     setText("");
@@ -1622,6 +1348,11 @@ ${parts.join("\n")}
     setWifiPassword("");
     setWifiSecurity("WPA");
     setWifiHidden(false);
+
+    setContactName("");
+    setContactPhone("");
+    setContactEmail("");
+    setContactCountryCode("+998");
 
     setLogo(null);
     setLogoError("");
@@ -1645,26 +1376,64 @@ ${parts.join("\n")}
     setGenerated(false);
     setShowWifiInfo(false);
 
-    if (
-      logoInputRef.current
-    ) {
+    if (logoInputRef.current) {
       logoInputRef.current.value =
         "";
     }
   }
 
-  /*
-   * ----------------------------------------------------
-   * UI
-   * ----------------------------------------------------
-   */
+  useEffect(() => {
+    let cancelled = false;
+
+    async function run() {
+      if (!qrText.trim()) {
+        setGenerated(false);
+        return;
+      }
+
+      try {
+        if (!cancelled) {
+          await renderQR();
+        }
+      } catch (error) {
+        console.error(
+          "QR render error:",
+          error
+        );
+
+        if (!cancelled) {
+          setGenerated(false);
+        }
+      }
+    }
+
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    qrText,
+    size,
+    foreground,
+    background,
+    gradientEnabled,
+    gradientColor,
+    dotStyle,
+    cornerStyle,
+    borderEnabled,
+    borderWidth,
+    captionEnabled,
+    caption,
+    errorLevel,
+    logo,
+    logoSize,
+  ]);
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
 
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-
-        {/* HEADER */}
 
         <header className="mb-8 flex items-center gap-3">
 
@@ -1685,8 +1454,6 @@ ${parts.join("\n")}
         </header>
 
         <div className="grid gap-6 lg:grid-cols-[1fr_460px]">
-
-          {/* SETTINGS */}
 
           <section className="rounded-3xl border border-slate-800 bg-slate-900 p-5 shadow-2xl sm:p-7">
 
@@ -1740,16 +1507,13 @@ ${parts.join("\n")}
             {/* URL / TEXT */}
 
             {(mode === "URL" ||
-              mode === "Текст" ||
-              mode === "Контакт") && (
+              mode === "Текст") && (
 
               <div className="mb-6">
 
                 <label className="mb-2 block text-sm font-medium text-slate-300">
                   {mode === "URL"
                     ? "Ссылка"
-                    : mode === "Контакт"
-                    ? "Контакт"
                     : "Текст"}
                 </label>
 
@@ -1763,13 +1527,142 @@ ${parts.join("\n")}
                   placeholder={
                     mode === "URL"
                       ? "https://example.com"
-                      : mode ===
-                        "Контакт"
-                      ? "Имя: Иван Иванов\nТелефон: +79990000000\nEmail: example@mail.com"
                       : "Введите текст"
                   }
                   className="min-h-36 w-full resize-none rounded-2xl border border-slate-700 bg-slate-950 p-4 text-white outline-none placeholder:text-slate-600 focus:border-white"
                 />
+
+              </div>
+
+            )}
+
+            {/* CONTACT */}
+
+            {mode === "Контакт" && (
+
+              <div className="mb-6 space-y-4">
+
+                <div>
+
+                  <label className="mb-2 block text-sm font-medium text-slate-300">
+                    👤 ФИО
+                  </label>
+
+                  <input
+                    type="text"
+                    value={contactName}
+                    onChange={(e) =>
+                      setContactName(
+                        e.target.value
+                      )
+                    }
+                    placeholder="Иван Иванов"
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-white"
+                  />
+
+                </div>
+
+                <div>
+
+                  <label className="mb-2 block text-sm font-medium text-slate-300">
+                    📱 Номер телефона
+                  </label>
+
+                  <div className="flex gap-2">
+
+                    <select
+                      value={
+                        contactCountryCode
+                      }
+                      onChange={(e) =>
+                        setContactCountryCode(
+                          e.target.value
+                        )
+                      }
+                      className="w-[155px] shrink-0 rounded-xl border border-slate-700 bg-slate-950 px-3 py-3 text-sm text-white outline-none focus:border-white"
+                    >
+
+                      {countryCodes.map(
+                        (item) => (
+
+                          <option
+                            key={`${item.country}-${item.code}`}
+                            value={item.code}
+                          >
+                            {item.country}{" "}
+                            {item.code}
+                          </option>
+
+                        )
+                      )}
+
+                    </select>
+
+                    <input
+                      type="tel"
+                      value={
+                        contactPhone
+                      }
+                      onChange={(e) =>
+                        setContactPhone(
+                          e.target.value
+                        )
+                      }
+                      placeholder="90 123 45 67"
+                      className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-white"
+                    />
+
+                  </div>
+
+                  <p className="mt-2 text-xs text-slate-500">
+                    Выберите код страны и введите номер без кода страны.
+                  </p>
+
+                </div>
+
+                <div>
+
+                  <label className="mb-2 block text-sm font-medium text-slate-300">
+                    📧 Email
+                  </label>
+
+                  <input
+                    type="email"
+                    value={
+                      contactEmail
+                    }
+                    onChange={(e) =>
+                      setContactEmail(
+                        e.target.value
+                      )
+                    }
+                    placeholder="example@mail.com"
+                    className={`w-full rounded-xl border bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 ${
+                      contactEmail &&
+                      !isValidEmail(
+                        contactEmail
+                      )
+                        ? "border-red-500 focus:border-red-500"
+                        : "border-slate-700 focus:border-white"
+                    }`}
+                  />
+
+                  {contactEmail &&
+                    !isValidEmail(
+                      contactEmail
+                    ) && (
+
+                      <div className="mt-2 rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-400">
+                        ❌ Неверный Email. Используйте формат: example@mail.com
+                      </div>
+
+                    )}
+
+                </div>
+
+                <div className="rounded-xl border border-slate-800 bg-slate-950 p-3 text-xs text-slate-500">
+                  💡 После сканирования пользователь сможет добавить этот контакт прямо в телефон.
+                </div>
 
               </div>
 
@@ -1790,7 +1683,9 @@ ${parts.join("\n")}
                   <div className="flex gap-2">
 
                     <input
-                      value={wifiSSID}
+                      value={
+                        wifiSSID
+                      }
                       onChange={(e) =>
                         setWifiSSID(
                           e.target.value
@@ -1823,9 +1718,7 @@ ${parts.join("\n")}
 
                   <div className="rounded-2xl border border-blue-900/60 bg-blue-950/40 p-4 text-sm text-blue-200">
 
-                    📶 Веб-приложение на iPhone
-                    не может получить список
-                    доступных Wi-Fi сетей.
+                    📶 Веб-приложение на iPhone не может получить список доступных Wi-Fi сетей.
 
                     <button
                       type="button"
@@ -1850,7 +1743,9 @@ ${parts.join("\n")}
                   </label>
 
                   <input
-                    value={wifiPassword}
+                    value={
+                      wifiPassword
+                    }
                     onChange={(e) =>
                       setWifiPassword(
                         e.target.value
@@ -1938,22 +1833,10 @@ ${parts.join("\n")}
 
                 {(
                   [
-                    [
-                      "classic",
-                      "Classic",
-                    ],
-                    [
-                      "modern",
-                      "Modern",
-                    ],
-                    [
-                      "neon",
-                      "Neon",
-                    ],
-                    [
-                      "business",
-                      "Business",
-                    ],
+                    ["classic", "Classic"],
+                    ["modern", "Modern"],
+                    ["neon", "Neon"],
+                    ["business", "Business"],
                   ] as [
                     Preset,
                     string
@@ -2009,8 +1892,7 @@ ${parts.join("\n")}
                       }
                       onChange={(e) =>
                         setForeground(
-                          e.target
-                            .value
+                          e.target.value
                         )
                       }
                       className="h-11 w-16 rounded-xl"
@@ -2022,8 +1904,7 @@ ${parts.join("\n")}
                       }
                       onChange={(e) =>
                         setForeground(
-                          e.target
-                            .value
+                          e.target.value
                         )
                       }
                       className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 uppercase"
@@ -2048,8 +1929,7 @@ ${parts.join("\n")}
                       }
                       onChange={(e) =>
                         setBackground(
-                          e.target
-                            .value
+                          e.target.value
                         )
                       }
                       className="h-11 w-16 rounded-xl"
@@ -2061,8 +1941,7 @@ ${parts.join("\n")}
                       }
                       onChange={(e) =>
                         setBackground(
-                          e.target
-                            .value
+                          e.target.value
                         )
                       }
                       className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 uppercase"
@@ -2101,8 +1980,7 @@ ${parts.join("\n")}
                   }
                   onChange={(e) =>
                     setGradientEnabled(
-                      e.target
-                        .checked
+                      e.target.checked
                     )
                   }
                   className="h-5 w-5"
@@ -2121,8 +1999,7 @@ ${parts.join("\n")}
                     }
                     onChange={(e) =>
                       setGradientColor(
-                        e.target
-                          .value
+                        e.target.value
                       )
                     }
                     className="h-11 w-16 rounded-xl"
@@ -2134,8 +2011,7 @@ ${parts.join("\n")}
                     }
                     onChange={(e) =>
                       setGradientColor(
-                        e.target
-                          .value
+                        e.target.value
                       )
                     }
                     className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 uppercase"
@@ -2147,7 +2023,7 @@ ${parts.join("\n")}
 
             </div>
 
-            {/* DOT STYLE */}
+            {/* DOTS */}
 
             <div className="mb-6">
 
@@ -2164,8 +2040,7 @@ ${parts.join("\n")}
                     )
                   }
                   className={`rounded-xl border p-3 text-sm ${
-                    dotStyle ===
-                    "square"
+                    dotStyle === "square"
                       ? "border-white bg-white text-slate-950"
                       : "border-slate-700"
                   }`}
@@ -2180,8 +2055,7 @@ ${parts.join("\n")}
                     )
                   }
                   className={`rounded-xl border p-3 text-sm ${
-                    dotStyle ===
-                    "round"
+                    dotStyle === "round"
                       ? "border-white bg-white text-slate-950"
                       : "border-slate-700"
                   }`}
@@ -2196,8 +2070,7 @@ ${parts.join("\n")}
                     )
                   }
                   className={`rounded-xl border p-3 text-sm ${
-                    dotStyle ===
-                    "soft"
+                    dotStyle === "soft"
                       ? "border-white bg-white text-slate-950"
                       : "border-slate-700"
                   }`}
@@ -2226,8 +2099,7 @@ ${parts.join("\n")}
                     )
                   }
                   className={`rounded-xl border p-3 ${
-                    cornerStyle ===
-                    "square"
+                    cornerStyle === "square"
                       ? "border-white bg-white text-slate-950"
                       : "border-slate-700"
                   }`}
@@ -2242,8 +2114,7 @@ ${parts.join("\n")}
                     )
                   }
                   className={`rounded-xl border p-3 ${
-                    cornerStyle ===
-                    "round"
+                    cornerStyle === "round"
                       ? "border-white bg-white text-slate-950"
                       : "border-slate-700"
                   }`}
@@ -2270,9 +2141,7 @@ ${parts.join("\n")}
               {!logo ? (
                 <>
                   <input
-                    ref={
-                      logoInputRef
-                    }
+                    ref={logoInputRef}
                     type="file"
                     accept="image/png,image/jpeg,image/webp,image/svg+xml"
                     onChange={
@@ -2298,9 +2167,7 @@ ${parts.join("\n")}
                     <div className="flex h-20 w-20 items-center justify-center rounded-xl bg-white p-2">
 
                       <img
-                        src={
-                          logo
-                        }
+                        src={logo}
                         alt="Logo"
                         className="max-h-full max-w-full object-contain"
                       />
@@ -2342,17 +2209,14 @@ ${parts.join("\n")}
                         (value) => (
 
                           <button
-                            key={
-                              value
-                            }
+                            key={value}
                             onClick={() =>
                               setLogoSize(
                                 value
                               )
                             }
                             className={`rounded-xl border p-3 text-xs ${
-                              logoSize ===
-                              value
+                              logoSize === value
                                 ? "border-white bg-white text-slate-950"
                                 : "border-slate-700"
                             }`}
@@ -2403,8 +2267,7 @@ ${parts.join("\n")}
                   }
                   onChange={(e) =>
                     setBorderEnabled(
-                      e.target
-                        .checked
+                      e.target.checked
                     )
                   }
                   className="h-5 w-5"
@@ -2417,8 +2280,7 @@ ${parts.join("\n")}
                 <div className="mt-4">
 
                   <label className="mb-2 block text-xs text-slate-400">
-                    Толщина:{" "}
-                    {borderWidth}px
+                    Толщина: {borderWidth}px
                   </label>
 
                   <input
@@ -2431,8 +2293,7 @@ ${parts.join("\n")}
                     onChange={(e) =>
                       setBorderWidth(
                         Number(
-                          e.target
-                            .value
+                          e.target.value
                         )
                       )
                     }
@@ -2470,8 +2331,7 @@ ${parts.join("\n")}
                   }
                   onChange={(e) =>
                     setCaptionEnabled(
-                      e.target
-                        .checked
+                      e.target.checked
                     )
                   }
                   className="h-5 w-5"
@@ -2487,8 +2347,7 @@ ${parts.join("\n")}
                   }
                   onChange={(e) =>
                     setCaption(
-                      e.target
-                        .value
+                      e.target.value
                     )
                   }
                   placeholder="Сканируй меня"
@@ -2513,17 +2372,14 @@ ${parts.join("\n")}
                   (value) => (
 
                     <button
-                      key={
-                        value
-                      }
+                      key={value}
                       onClick={() =>
                         setSize(
                           value
                         )
                       }
                       className={`rounded-xl border p-3 text-sm ${
-                        size ===
-                        value
+                        size === value
                           ? "border-white bg-white text-slate-950"
                           : "border-slate-700"
                       }`}
@@ -2557,17 +2413,14 @@ ${parts.join("\n")}
                   ([level, percent]) => (
 
                     <button
-                      key={
-                        level
-                      }
+                      key={level}
                       onClick={() =>
                         setErrorLevel(
                           level as ErrorLevel
                         )
                       }
                       className={`rounded-xl border p-3 ${
-                        errorLevel ===
-                        level
+                        errorLevel === level
                           ? "border-white bg-white text-slate-950"
                           : "border-slate-700"
                       }`}
@@ -2587,12 +2440,6 @@ ${parts.join("\n")}
                 )}
 
               </div>
-
-              {logo && (
-                <p className="mt-2 text-xs text-slate-500">
-                  Для QR с логотипом рекомендуется H.
-                </p>
-              )}
 
             </div>
 
@@ -2727,11 +2574,9 @@ ${parts.join("\n")}
                   </span>
 
                   <span>
-                    {dotStyle ===
-                    "square"
+                    {dotStyle === "square"
                       ? "Квадрат"
-                      : dotStyle ===
-                        "round"
+                      : dotStyle === "round"
                       ? "Круг"
                       : "Soft"}
                   </span>
@@ -2745,13 +2590,30 @@ ${parts.join("\n")}
                   </span>
 
                   <span>
-                    {cornerStyle ===
-                    "square"
+                    {cornerStyle === "square"
                       ? "Квадратные"
                       : "Круглые"}
                   </span>
 
                 </div>
+
+                {mode === "Контакт" &&
+                  contactPhone && (
+
+                    <div className="mt-2 flex justify-between">
+
+                      <span className="text-slate-500">
+                        Телефон
+                      </span>
+
+                      <span>
+                        {contactCountryCode}{" "}
+                        {contactPhone}
+                      </span>
+
+                    </div>
+
+                  )}
 
                 {logo && (
 
