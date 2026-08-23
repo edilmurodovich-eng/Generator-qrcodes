@@ -195,6 +195,49 @@ export default function Home() {
     }
   }
 
+  async function downloadSVG() {
+    if (!text.trim()) return;
+
+    try {
+      setDownloading(true);
+
+      const svg = await QRCode.toString(text, {
+        type: "svg",
+        width: size,
+        margin: 4,
+        errorCorrectionLevel: errorLevel,
+        color: {
+          dark: foreground,
+          light: background,
+        },
+      });
+
+      const blob = new Blob([svg], {
+        type: "image/svg+xml;charset=utf-8",
+      });
+
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = `qr-pro-${size}x${size}.svg`;
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+      }, 1000);
+    } catch (error) {
+      console.error("SVG export error:", error);
+      alert("Не удалось создать SVG.");
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   function clearAll() {
     setText("");
     setGenerated(false);
@@ -246,6 +289,7 @@ export default function Home() {
               </label>
 
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+
                 {["URL", "Текст", "Wi-Fi", "Контакт"].map(
                   (type) => (
                     <button
@@ -257,6 +301,7 @@ export default function Home() {
                     </button>
                   )
                 )}
+
               </div>
             </div>
 
@@ -283,6 +328,7 @@ export default function Home() {
               </label>
 
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+
                 {sizes.map((value) => (
                   <button
                     key={value}
@@ -297,6 +343,7 @@ export default function Home() {
                     {value}
                   </button>
                 ))}
+
               </div>
 
               <p className="mt-2 text-xs text-slate-500">
@@ -312,6 +359,7 @@ export default function Home() {
               </label>
 
               <div className="grid grid-cols-4 gap-2">
+
                 {[
                   ["L", "7%"],
                   ["M", "15%"],
@@ -341,6 +389,7 @@ export default function Home() {
                     </div>
                   </button>
                 ))}
+
               </div>
             </div>
 
@@ -354,6 +403,7 @@ export default function Home() {
                 </label>
 
                 <div className="flex gap-2">
+
                   <input
                     type="color"
                     value={foreground}
@@ -370,6 +420,7 @@ export default function Home() {
                     }
                     className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm uppercase outline-none"
                   />
+
                 </div>
               </div>
 
@@ -379,6 +430,7 @@ export default function Home() {
                 </label>
 
                 <div className="flex gap-2">
+
                   <input
                     type="color"
                     value={background}
@@ -395,14 +447,15 @@ export default function Home() {
                     }
                     className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm uppercase outline-none"
                   />
+
                 </div>
               </div>
 
             </div>
 
-            {/* BUTTONS */}
+            {/* DOWNLOAD */}
 
-            <div className="mt-7 flex gap-3">
+            <div className="mt-7 grid grid-cols-2 gap-3">
 
               <button
                 type="button"
@@ -416,11 +469,18 @@ export default function Home() {
                 type="button"
                 onClick={downloadPNG}
                 disabled={!generated || downloading}
-                className="flex-1 rounded-xl bg-white px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-xl bg-white px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {downloading
-                  ? "Создание PNG..."
-                  : "Скачать PNG"}
+                {downloading ? "Создание..." : "PNG"}
+              </button>
+
+              <button
+                type="button"
+                onClick={downloadSVG}
+                disabled={!generated || downloading}
+                className="rounded-xl border border-white px-5 py-3 text-sm font-bold text-white transition hover:bg-white hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {downloading ? "Создание..." : "SVG"}
               </button>
 
             </div>
@@ -432,6 +492,7 @@ export default function Home() {
           <section className="flex min-h-[520px] flex-col rounded-3xl border border-slate-800 bg-slate-900 p-5 shadow-2xl sm:p-7">
 
             <div className="mb-5">
+
               <h2 className="text-xl font-semibold">
                 Предпросмотр
               </h2>
@@ -441,6 +502,7 @@ export default function Home() {
                   ? `${size} × ${size} px`
                   : "Введите данные"}
               </p>
+
             </div>
 
             <div className="flex flex-1 items-center justify-center overflow-hidden rounded-3xl bg-white p-5">
@@ -501,6 +563,8 @@ export default function Home() {
           </section>
 
         </div>
+
+        {/* FOOTER */}
 
         <footer className="py-8 text-center text-xs text-slate-600">
           QR Pro • High Resolution QR Generator
