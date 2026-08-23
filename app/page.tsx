@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 
 const sizes = [512, 1024, 2048, 4096, 8192];
+
 const logoSizes = [10, 15, 20, 25, 30];
 
 type ErrorLevel = "L" | "M" | "Q" | "H";
@@ -12,50 +13,316 @@ type DotStyle = "square" | "round" | "soft";
 type CornerStyle = "square" | "round";
 type Preset = "classic" | "modern" | "neon" | "business";
 
-const countryCodes = [
-  { code: "+998", country: "🇺🇿 Узбекистан" },
-  { code: "+7", country: "🇷🇺 Россия / Казахстан" },
-  { code: "+49", country: "🇩🇪 Германия" },
-  { code: "+380", country: "🇺🇦 Украина" },
-  { code: "+375", country: "🇧🇾 Беларусь" },
-  { code: "+996", country: "🇰🇬 Кыргызстан" },
-  { code: "+992", country: "🇹🇯 Таджикистан" },
-  { code: "+993", country: "🇹🇲 Туркменистан" },
-  { code: "+971", country: "🇦🇪 ОАЭ" },
-  { code: "+90", country: "🇹🇷 Турция" },
-  { code: "+33", country: "🇫🇷 Франция" },
-  { code: "+39", country: "🇮🇹 Италия" },
-  { code: "+34", country: "🇪🇸 Испания" },
-  { code: "+44", country: "🇬🇧 Великобритания" },
-  { code: "+1", country: "🇺🇸 США / Канада" },
-  { code: "+86", country: "🇨🇳 Китай" },
-  { code: "+81", country: "🇯🇵 Япония" },
-  { code: "+82", country: "🇰🇷 Южная Корея" },
-  { code: "+91", country: "🇮🇳 Индия" },
-  { code: "+31", country: "🇳🇱 Нидерланды" },
-  { code: "+32", country: "🇧🇪 Бельгия" },
-  { code: "+41", country: "🇨🇭 Швейцария" },
-  { code: "+43", country: "🇦🇹 Австрия" },
-  { code: "+45", country: "🇩🇰 Дания" },
-  { code: "+46", country: "🇸🇪 Швеция" },
-  { code: "+47", country: "🇳🇴 Норвегия" },
-  { code: "+48", country: "🇵🇱 Польша" },
-  { code: "+351", country: "🇵🇹 Португалия" },
-  { code: "+30", country: "🇬🇷 Греция" },
-  { code: "+40", country: "🇷🇴 Румыния" },
-  { code: "+359", country: "🇧🇬 Болгария" },
-  { code: "+380", country: "🇺🇦 Украина" },
-  { code: "+972", country: "🇮🇱 Израиль" },
-  { code: "+974", country: "🇶🇦 Катар" },
-  { code: "+966", country: "🇸🇦 Саудовская Аравия" },
-  { code: "+994", country: "🇦🇿 Азербайджан" },
-  { code: "+995", country: "🇬🇪 Грузия" },
-  { code: "+98", country: "🇮🇷 Иран" },
-  { code: "+93", country: "🇦🇫 Афганистан" },
-  { code: "+92", country: "🇵🇰 Пакистан" },
-  { code: "+880", country: "🇧🇩 Бангладеш" },
-  { code: "+90", country: "🇹🇷 Турция" },
-  { code: "+20", country: "🇪🇬 Египет" },
+type Country = {
+  code: string;
+  flag: string;
+  name: string;
+  digits: number;
+  groups: number[];
+};
+
+const countries: Country[] = [
+  {
+    code: "+998",
+    flag: "🇺🇿",
+    name: "Узбекистан",
+    digits: 9,
+    groups: [2, 3, 2, 2],
+  },
+  {
+    code: "+7",
+    flag: "🇷🇺",
+    name: "Россия",
+    digits: 10,
+    groups: [3, 3, 2, 2],
+  },
+  {
+    code: "+7",
+    flag: "🇰🇿",
+    name: "Казахстан",
+    digits: 10,
+    groups: [3, 3, 2, 2],
+  },
+  {
+    code: "+49",
+    flag: "🇩🇪",
+    name: "Германия",
+    digits: 11,
+    groups: [3, 4, 4],
+  },
+  {
+    code: "+380",
+    flag: "🇺🇦",
+    name: "Украина",
+    digits: 9,
+    groups: [2, 3, 2, 2],
+  },
+  {
+    code: "+375",
+    flag: "🇧🇾",
+    name: "Беларусь",
+    digits: 9,
+    groups: [2, 3, 2, 2],
+  },
+  {
+    code: "+996",
+    flag: "🇰🇬",
+    name: "Кыргызстан",
+    digits: 9,
+    groups: [3, 3, 3],
+  },
+  {
+    code: "+992",
+    flag: "🇹🇯",
+    name: "Таджикистан",
+    digits: 9,
+    groups: [2, 3, 2, 2],
+  },
+  {
+    code: "+993",
+    flag: "🇹🇲",
+    name: "Туркменистан",
+    digits: 8,
+    groups: [2, 3, 3],
+  },
+  {
+    code: "+971",
+    flag: "🇦🇪",
+    name: "ОАЭ",
+    digits: 9,
+    groups: [2, 3, 4],
+  },
+  {
+    code: "+90",
+    flag: "🇹🇷",
+    name: "Турция",
+    digits: 10,
+    groups: [3, 3, 2, 2],
+  },
+  {
+    code: "+44",
+    flag: "🇬🇧",
+    name: "Великобритания",
+    digits: 10,
+    groups: [4, 3, 3],
+  },
+  {
+    code: "+33",
+    flag: "🇫🇷",
+    name: "Франция",
+    digits: 9,
+    groups: [1, 2, 2, 2, 2],
+  },
+  {
+    code: "+39",
+    flag: "🇮🇹",
+    name: "Италия",
+    digits: 10,
+    groups: [3, 3, 2, 2],
+  },
+  {
+    code: "+34",
+    flag: "🇪🇸",
+    name: "Испания",
+    digits: 9,
+    groups: [3, 3, 3],
+  },
+  {
+    code: "+1",
+    flag: "🇺🇸",
+    name: "США",
+    digits: 10,
+    groups: [3, 3, 4],
+  },
+  {
+    code: "+1",
+    flag: "🇨🇦",
+    name: "Канада",
+    digits: 10,
+    groups: [3, 3, 4],
+  },
+  {
+    code: "+86",
+    flag: "🇨🇳",
+    name: "Китай",
+    digits: 11,
+    groups: [3, 4, 4],
+  },
+  {
+    code: "+81",
+    flag: "🇯🇵",
+    name: "Япония",
+    digits: 10,
+    groups: [2, 4, 4],
+  },
+  {
+    code: "+82",
+    flag: "🇰🇷",
+    name: "Южная Корея",
+    digits: 10,
+    groups: [2, 4, 4],
+  },
+  {
+    code: "+91",
+    flag: "🇮🇳",
+    name: "Индия",
+    digits: 10,
+    groups: [5, 5],
+  },
+  {
+    code: "+31",
+    flag: "🇳🇱",
+    name: "Нидерланды",
+    digits: 9,
+    groups: [2, 3, 4],
+  },
+  {
+    code: "+32",
+    flag: "🇧🇪",
+    name: "Бельгия",
+    digits: 9,
+    groups: [3, 2, 2, 2],
+  },
+  {
+    code: "+41",
+    flag: "🇨🇭",
+    name: "Швейцария",
+    digits: 9,
+    groups: [2, 3, 2, 2],
+  },
+  {
+    code: "+43",
+    flag: "🇦🇹",
+    name: "Австрия",
+    digits: 10,
+    groups: [3, 3, 2, 2],
+  },
+  {
+    code: "+45",
+    flag: "🇩🇰",
+    name: "Дания",
+    digits: 8,
+    groups: [2, 2, 2, 2],
+  },
+  {
+    code: "+46",
+    flag: "🇸🇪",
+    name: "Швеция",
+    digits: 9,
+    groups: [2, 3, 2, 2],
+  },
+  {
+    code: "+47",
+    flag: "🇳🇴",
+    name: "Норвегия",
+    digits: 8,
+    groups: [3, 2, 3],
+  },
+  {
+    code: "+48",
+    flag: "🇵🇱",
+    name: "Польша",
+    digits: 9,
+    groups: [3, 3, 3],
+  },
+  {
+    code: "+351",
+    flag: "🇵🇹",
+    name: "Португалия",
+    digits: 9,
+    groups: [3, 3, 3],
+  },
+  {
+    code: "+30",
+    flag: "🇬🇷",
+    name: "Греция",
+    digits: 10,
+    groups: [3, 3, 2, 2],
+  },
+  {
+    code: "+40",
+    flag: "🇷🇴",
+    name: "Румыния",
+    digits: 9,
+    groups: [3, 3, 3],
+  },
+  {
+    code: "+359",
+    flag: "🇧🇬",
+    name: "Болгария",
+    digits: 9,
+    groups: [3, 3, 3],
+  },
+  {
+    code: "+972",
+    flag: "🇮🇱",
+    name: "Израиль",
+    digits: 9,
+    groups: [2, 3, 4],
+  },
+  {
+    code: "+974",
+    flag: "🇶🇦",
+    name: "Катар",
+    digits: 8,
+    groups: [4, 4],
+  },
+  {
+    code: "+966",
+    flag: "🇸🇦",
+    name: "Саудовская Аравия",
+    digits: 9,
+    groups: [2, 3, 4],
+  },
+  {
+    code: "+994",
+    flag: "🇦🇿",
+    name: "Азербайджан",
+    digits: 9,
+    groups: [2, 3, 2, 2],
+  },
+  {
+    code: "+995",
+    flag: "🇬🇪",
+    name: "Грузия",
+    digits: 9,
+    groups: [3, 3, 3],
+  },
+  {
+    code: "+98",
+    flag: "🇮🇷",
+    name: "Иран",
+    digits: 10,
+    groups: [3, 3, 2, 2],
+  },
+  {
+    code: "+93",
+    flag: "🇦🇫",
+    name: "Афганистан",
+    digits: 9,
+    groups: [3, 3, 3],
+  },
+  {
+    code: "+92",
+    flag: "🇵🇰",
+    name: "Пакистан",
+    digits: 10,
+    groups: [3, 3, 4],
+  },
+  {
+    code: "+880",
+    flag: "🇧🇩",
+    name: "Бангладеш",
+    digits: 10,
+    groups: [4, 3, 3],
+  },
+  {
+    code: "+20",
+    flag: "🇪🇬",
+    name: "Египет",
+    digits: 10,
+    groups: [2, 4, 4],
+  },
 ];
 
 type QRMatrix = {
@@ -64,31 +331,57 @@ type QRMatrix = {
 };
 
 export default function Home() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const logoInputRef = useRef<HTMLInputElement>(null);
+  const canvasRef =
+    useRef<HTMLCanvasElement>(null);
 
-  const [mode, setMode] = useState("URL");
-  const [text, setText] = useState("");
+  const logoInputRef =
+    useRef<HTMLInputElement>(null);
 
-  const [wifiSSID, setWifiSSID] = useState("");
-  const [wifiPassword, setWifiPassword] = useState("");
+  const [mode, setMode] =
+    useState("URL");
+
+  const [text, setText] =
+    useState("");
+
+  const [wifiSSID, setWifiSSID] =
+    useState("");
+
+  const [wifiPassword, setWifiPassword] =
+    useState("");
+
   const [wifiSecurity, setWifiSecurity] =
     useState<WifiSecurity>("WPA");
-  const [wifiHidden, setWifiHidden] = useState(false);
 
-  const [contactName, setContactName] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
-  const [contactEmail, setContactEmail] = useState("");
-  const [contactCountryCode, setContactCountryCode] =
-    useState("+998");
+  const [wifiHidden, setWifiHidden] =
+    useState(false);
 
-  const [size, setSize] = useState(1024);
+  const [contactName, setContactName] =
+    useState("");
 
-  const [foreground, setForeground] = useState("#000000");
-  const [background, setBackground] = useState("#ffffff");
+  const [contactPhone, setContactPhone] =
+    useState("");
+
+  const [contactEmail, setContactEmail] =
+    useState("");
+
+  const [contactCountry, setContactCountry] =
+    useState<Country>(countries[0]);
+
+  const [countryOpen, setCountryOpen] =
+    useState(false);
+
+  const [size, setSize] =
+    useState(1024);
+
+  const [foreground, setForeground] =
+    useState("#000000");
+
+  const [background, setBackground] =
+    useState("#ffffff");
 
   const [gradientEnabled, setGradientEnabled] =
     useState(false);
+
   const [gradientColor, setGradientColor] =
     useState("#6366f1");
 
@@ -134,22 +427,124 @@ export default function Home() {
   const [showWifiInfo, setShowWifiInfo] =
     useState(false);
 
-  function isValidEmail(email: string) {
-    if (!email.trim()) return true;
+  /*
+   * =========================
+   * PHONE FUNCTIONS
+   * =========================
+   */
+
+  function getPhoneDigits(value: string) {
+    return value.replace(/\D/g, "");
+  }
+
+  function formatPhone(
+    value: string,
+    country: Country
+  ) {
+    const digits =
+      getPhoneDigits(value).slice(
+        0,
+        country.digits
+      );
+
+    const result: string[] = [];
+
+    let position = 0;
+
+    for (
+      const group of country.groups
+    ) {
+      if (
+        position >= digits.length
+      ) {
+        break;
+      }
+
+      result.push(
+        digits.slice(
+          position,
+          position + group
+        )
+      );
+
+      position += group;
+    }
+
+    return result.join(" ");
+  }
+
+  function handlePhoneChange(
+    value: string
+  ) {
+    const digits =
+      getPhoneDigits(value).slice(
+        0,
+        contactCountry.digits
+      );
+
+    setContactPhone(
+      formatPhone(
+        digits,
+        contactCountry
+      )
+    );
+  }
+
+  function handleCountryChange(
+    country: Country
+  ) {
+    const currentDigits =
+      getPhoneDigits(
+        contactPhone
+      ).slice(
+        0,
+        country.digits
+      );
+
+    setContactCountry(
+      country
+    );
+
+    setContactPhone(
+      formatPhone(
+        currentDigits,
+        country
+      )
+    );
+
+    setCountryOpen(false);
+  }
+
+  function isValidEmail(
+    email: string
+  ) {
+    if (!email.trim()) {
+      return true;
+    }
 
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
       email.trim()
     );
   }
 
-  function escapeWifi(value: string) {
+  /*
+   * =========================
+   * QR DATA
+   * =========================
+   */
+
+  function escapeWifi(
+    value: string
+  ) {
     return value.replace(
       /([\\;,:"])/g,
       "\\$1"
     );
   }
 
-  function escapeVCard(value: string) {
+  function escapeVCard(
+    value: string
+  ) {
     return value
       .replace(/\\/g, "\\\\")
       .replace(/\n/g, "\\n")
@@ -163,26 +558,36 @@ export default function Home() {
         wifiSSID
       )};P:${escapeWifi(
         wifiPassword
-      )};H:${wifiHidden ? "true" : "false"};;`;
+      )};H:${
+        wifiHidden
+          ? "true"
+          : "false"
+      };;`;
     }
 
     if (mode === "Контакт") {
       if (
         contactEmail.trim() &&
-        !isValidEmail(contactEmail)
+        !isValidEmail(
+          contactEmail
+        )
       ) {
         return "";
       }
 
-      const cleanPhone =
-        contactPhone.replace(/[^\d]/g, "");
+      const digits =
+        getPhoneDigits(
+          contactPhone
+        );
 
       const fullPhone =
-        `${contactCountryCode}${cleanPhone}`;
+        `${contactCountry.code}${digits}`;
 
       return `BEGIN:VCARD
 VERSION:3.0
-FN:${escapeVCard(contactName)}
+FN:${escapeVCard(
+        contactName
+      )}
 TEL:${fullPhone}
 EMAIL:${contactEmail.trim()}
 END:VCARD`;
@@ -191,29 +596,60 @@ END:VCARD`;
     return text;
   }
 
-  const qrText = getQRText();
+  const qrText =
+    getQRText();
 
-  function hexToRgb(hex: string) {
-    const clean = hex.replace("#", "");
+  /*
+   * =========================
+   * COLORS
+   * =========================
+   */
 
-    if (clean.length !== 6) {
+  function hexToRgb(
+    hex: string
+  ) {
+    const clean =
+      hex.replace("#", "");
+
+    if (
+      clean.length !== 6
+    ) {
       return null;
     }
 
     return {
-      r: parseInt(clean.slice(0, 2), 16),
-      g: parseInt(clean.slice(2, 4), 16),
-      b: parseInt(clean.slice(4, 6), 16),
+      r: parseInt(
+        clean.slice(0, 2),
+        16
+      ),
+      g: parseInt(
+        clean.slice(2, 4),
+        16
+      ),
+      b: parseInt(
+        clean.slice(4, 6),
+        16
+      ),
     };
   }
 
-  function getModuleColor(x: number, y: number) {
+  function getModuleColor(
+    x: number,
+    y: number
+  ) {
     if (!gradientEnabled) {
       return foreground;
     }
 
-    const start = hexToRgb(foreground);
-    const end = hexToRgb(gradientColor);
+    const start =
+      hexToRgb(
+        foreground
+      );
+
+    const end =
+      hexToRgb(
+        gradientColor
+      );
 
     if (!start || !end) {
       return foreground;
@@ -221,25 +657,38 @@ END:VCARD`;
 
     const t = Math.max(
       0,
-      Math.min(1, (x + y) / 2)
+      Math.min(
+        1,
+        (x + y) / 2
+      )
     );
 
     const r = Math.round(
-      start.r + (end.r - start.r) * t
+      start.r +
+        (end.r - start.r) * t
     );
 
     const g = Math.round(
-      start.g + (end.g - start.g) * t
+      start.g +
+        (end.g - start.g) * t
     );
 
     const b = Math.round(
-      start.b + (end.b - start.b) * t
+      start.b +
+        (end.b - start.b) * t
     );
 
     return `rgb(${r}, ${g}, ${b})`;
   }
 
-  function createMatrix(): QRMatrix | null {
+  /*
+   * =========================
+   * QR MATRIX
+   * =========================
+   */
+
+  function createMatrix():
+    QRMatrix | null {
     if (!qrText.trim()) {
       return null;
     }
@@ -250,7 +699,8 @@ END:VCARD`;
           create: (
             data: string,
             options: {
-              errorCorrectionLevel: ErrorLevel;
+              errorCorrectionLevel:
+                ErrorLevel;
             }
           ) => {
             modules: {
@@ -263,23 +713,25 @@ END:VCARD`;
           };
         };
 
-      const qr = qrCreator.create(
-        qrText,
-        {
-          errorCorrectionLevel:
-            errorLevel,
-        }
-      );
+      const qr =
+        qrCreator.create(
+          qrText,
+          {
+            errorCorrectionLevel:
+              errorLevel,
+          }
+        );
 
       return {
-        size: qr.modules.size,
-        get: qr.modules.get.bind(
-          qr.modules
-        ),
+        size:
+          qr.modules.size,
+        get:
+          qr.modules.get.bind(
+            qr.modules
+          ),
       };
     } catch (error) {
       console.error(
-        "Matrix error:",
         error
       );
 
@@ -293,13 +745,18 @@ END:VCARD`;
     matrixSize: number
   ) {
     const areas = [
-      { row: 0, col: 0 },
       {
         row: 0,
-        col: matrixSize - 7,
+        col: 0,
       },
       {
-        row: matrixSize - 7,
+        row: 0,
+        col:
+          matrixSize - 7,
+      },
+      {
+        row:
+          matrixSize - 7,
         col: 0,
       },
     ];
@@ -307,11 +764,19 @@ END:VCARD`;
     return areas.some(
       (area) =>
         row >= area.row &&
-        row < area.row + 7 &&
+        row <
+          area.row + 7 &&
         col >= area.col &&
-        col < area.col + 7
+        col <
+          area.col + 7
     );
   }
+
+  /*
+   * =========================
+   * CANVAS DRAWING
+   * =========================
+   */
 
   function roundRect(
     ctx: CanvasRenderingContext2D,
@@ -321,16 +786,24 @@ END:VCARD`;
     height: number,
     radius: number
   ) {
-    const r = Math.min(
-      radius,
-      width / 2,
-      height / 2
-    );
+    const r =
+      Math.min(
+        radius,
+        width / 2,
+        height / 2
+      );
 
     ctx.beginPath();
 
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + width - r, y);
+    ctx.moveTo(
+      x + r,
+      y
+    );
+
+    ctx.lineTo(
+      x + width - r,
+      y
+    );
 
     ctx.quadraticCurveTo(
       x + width,
@@ -363,7 +836,10 @@ END:VCARD`;
       y + height - r
     );
 
-    ctx.lineTo(x, y + r);
+    ctx.lineTo(
+      x,
+      y + r
+    );
 
     ctx.quadraticCurveTo(
       x,
@@ -382,13 +858,17 @@ END:VCARD`;
     module: number,
     color: string
   ) {
-    const total = module * 7;
+    const total =
+      module * 7;
 
     ctx.save();
 
-    ctx.fillStyle = color;
+    ctx.fillStyle =
+      color;
 
-    if (cornerStyle === "round") {
+    if (
+      cornerStyle === "round"
+    ) {
       roundRect(
         ctx,
         x,
@@ -397,6 +877,7 @@ END:VCARD`;
         total,
         module * 1.2
       );
+
       ctx.fill();
     } else {
       ctx.fillRect(
@@ -407,11 +888,15 @@ END:VCARD`;
       );
     }
 
-    ctx.fillStyle = background;
+    ctx.fillStyle =
+      background;
 
-    const inner = module * 5;
+    const inner =
+      module * 5;
 
-    if (cornerStyle === "round") {
+    if (
+      cornerStyle === "round"
+    ) {
       roundRect(
         ctx,
         x + module,
@@ -420,6 +905,7 @@ END:VCARD`;
         inner,
         module
       );
+
       ctx.fill();
     } else {
       ctx.fillRect(
@@ -430,11 +916,15 @@ END:VCARD`;
       );
     }
 
-    ctx.fillStyle = color;
+    ctx.fillStyle =
+      color;
 
-    const center = module * 3;
+    const center =
+      module * 3;
 
-    if (cornerStyle === "round") {
+    if (
+      cornerStyle === "round"
+    ) {
       roundRect(
         ctx,
         x + module * 2,
@@ -443,6 +933,7 @@ END:VCARD`;
         center,
         module * 0.8
       );
+
       ctx.fill();
     } else {
       ctx.fillRect(
@@ -468,24 +959,34 @@ END:VCARD`;
         ? module * 0.08
         : 0;
 
-    const px = x + gap;
-    const py = y + gap;
+    const px =
+      x + gap;
 
-    const width = module - gap * 2;
+    const py =
+      y + gap;
 
-    ctx.fillStyle = color;
+    const width =
+      module - gap * 2;
 
-    if (dotStyle === "square") {
+    ctx.fillStyle =
+      color;
+
+    if (
+      dotStyle === "square"
+    ) {
       ctx.fillRect(
         px,
         py,
         width,
         width
       );
+
       return;
     }
 
-    if (dotStyle === "round") {
+    if (
+      dotStyle === "round"
+    ) {
       ctx.beginPath();
 
       ctx.arc(
@@ -497,6 +998,7 @@ END:VCARD`;
       );
 
       ctx.fill();
+
       return;
     }
 
@@ -516,11 +1018,14 @@ END:VCARD`;
     ctx: CanvasRenderingContext2D,
     qrArea: number
   ) {
-    if (!logo) return;
+    if (!logo) {
+      return;
+    }
 
     await new Promise<void>(
       (resolve) => {
-        const image = new Image();
+        const image =
+          new Image();
 
         image.onload = () => {
           const logoPixels =
@@ -528,13 +1033,18 @@ END:VCARD`;
             (logoSize / 100);
 
           const x =
-            (size - logoPixels) / 2;
+            (size -
+              logoPixels) /
+            2;
 
           const y =
-            (qrArea - logoPixels) / 2;
+            (qrArea -
+              logoPixels) /
+            2;
 
           const padding =
-            logoPixels * 0.13;
+            logoPixels *
+            0.13;
 
           ctx.save();
 
@@ -567,10 +1077,11 @@ END:VCARD`;
           resolve();
         };
 
-        image.onerror = () =>
-          resolve();
+        image.onerror =
+          () => resolve();
 
-        image.src = logo;
+        image.src =
+          logo;
       }
     );
   }
@@ -582,7 +1093,9 @@ END:VCARD`;
     const fontSize =
       Math.max(
         20,
-        Math.floor(size * 0.032)
+        Math.floor(
+          size * 0.032
+        )
       );
 
     ctx.save();
@@ -593,8 +1106,11 @@ END:VCARD`;
     ctx.font =
       `700 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
 
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
+    ctx.textAlign =
+      "center";
+
+    ctx.textBaseline =
+      "middle";
 
     ctx.fillText(
       caption,
@@ -610,7 +1126,10 @@ END:VCARD`;
     const canvas =
       canvasRef.current;
 
-    if (!canvas || !qrText.trim()) {
+    if (
+      !canvas ||
+      !qrText.trim()
+    ) {
       setGenerated(false);
       return;
     }
@@ -625,19 +1144,28 @@ END:VCARD`;
 
     const captionSpace =
       captionEnabled
-        ? Math.floor(size * 0.12)
+        ? Math.floor(
+            size * 0.12
+          )
         : 0;
 
     const qrArea =
       size - captionSpace;
 
-    canvas.width = size;
-    canvas.height = size;
+    canvas.width =
+      size;
+
+    canvas.height =
+      size;
 
     const ctx =
-      canvas.getContext("2d");
+      canvas.getContext(
+        "2d"
+      );
 
-    if (!ctx) return;
+    if (!ctx) {
+      return;
+    }
 
     ctx.clearRect(
       0,
@@ -659,14 +1187,18 @@ END:VCARD`;
     const quiet =
       Math.max(
         12,
-        Math.floor(size * 0.035)
+        Math.floor(
+          size * 0.035
+        )
       );
 
     const available =
-      qrArea - quiet * 2;
+      qrArea -
+      quiet * 2;
 
     const module =
-      available / matrix.size;
+      available /
+      matrix.size;
 
     for (
       let row = 0;
@@ -710,12 +1242,14 @@ END:VCARD`;
             col /
               Math.max(
                 1,
-                matrix.size - 1
+                matrix.size -
+                  1
               ),
             row /
               Math.max(
                 1,
-                matrix.size - 1
+                matrix.size -
+                  1
               )
           );
 
@@ -740,7 +1274,8 @@ END:VCARD`;
     drawFinder(
       ctx,
       quiet +
-        (matrix.size - 7) *
+        (matrix.size -
+          7) *
           module,
       quiet,
       module,
@@ -751,13 +1286,16 @@ END:VCARD`;
       ctx,
       quiet,
       quiet +
-        (matrix.size - 7) *
+        (matrix.size -
+          7) *
           module,
       module,
       foreground
     );
 
-    if (borderEnabled) {
+    if (
+      borderEnabled
+    ) {
       ctx.save();
 
       ctx.strokeStyle =
@@ -771,8 +1309,10 @@ END:VCARD`;
       ctx.strokeRect(
         borderWidth / 2,
         borderWidth / 2,
-        size - borderWidth,
-        qrArea - borderWidth
+        size -
+          borderWidth,
+        qrArea -
+          borderWidth
       );
 
       ctx.restore();
@@ -785,7 +1325,9 @@ END:VCARD`;
       );
     }
 
-    if (captionEnabled) {
+    if (
+      captionEnabled
+    ) {
       drawCaption(
         ctx,
         qrArea
@@ -793,6 +1335,38 @@ END:VCARD`;
     }
 
     setGenerated(true);
+  }
+
+  /*
+   * =========================
+   * SVG
+   * =========================
+   */
+
+  function escapeXml(
+    value: string
+  ) {
+    return value
+      .replace(
+        /&/g,
+        "&amp;"
+      )
+      .replace(
+        /</g,
+        "&lt;"
+      )
+      .replace(
+        />/g,
+        "&gt;"
+      )
+      .replace(
+        /"/g,
+        "&quot;"
+      )
+      .replace(
+        /'/g,
+        "&apos;"
+      );
   }
 
   function createSvgModule(
@@ -806,19 +1380,27 @@ END:VCARD`;
         ? module * 0.08
         : 0;
 
-    const px = x + gap;
-    const py = y + gap;
+    const px =
+      x + gap;
+
+    const py =
+      y + gap;
 
     const width =
-      module - gap * 2;
+      module -
+      gap * 2;
 
-    if (dotStyle === "square") {
+    if (
+      dotStyle === "square"
+    ) {
       return `<rect x="${px}" y="${py}" width="${width}" height="${width}" fill="${escapeXml(
         color
       )}"/>`;
     }
 
-    if (dotStyle === "round") {
+    if (
+      dotStyle === "round"
+    ) {
       return `<circle cx="${
         x + module / 2
       }" cy="${
@@ -853,17 +1435,20 @@ END:VCARD`;
       module * 3;
 
     const radius =
-      cornerStyle === "round"
+      cornerStyle ===
+      "round"
         ? module * 1.2
         : 0;
 
     const innerRadius =
-      cornerStyle === "round"
+      cornerStyle ===
+      "round"
         ? module
         : 0;
 
     const centerRadius =
-      cornerStyle === "round"
+      cornerStyle ===
+      "round"
         ? module * 0.8
         : 0;
 
@@ -874,7 +1459,9 @@ END:VCARD`;
   width="${total}"
   height="${total}"
   rx="${radius}"
-  fill="${escapeXml(color)}"/>
+  fill="${escapeXml(
+    color
+  )}"/>
 
 <rect
   x="${x + module}"
@@ -882,7 +1469,9 @@ END:VCARD`;
   width="${inner}"
   height="${inner}"
   rx="${innerRadius}"
-  fill="${escapeXml(background)}"/>
+  fill="${escapeXml(
+    background
+  )}"/>
 
 <rect
   x="${x + module * 2}"
@@ -890,20 +1479,21 @@ END:VCARD`;
   width="${center}"
   height="${center}"
   rx="${centerRadius}"
-  fill="${escapeXml(color)}"/>`;
+  fill="${escapeXml(
+    color
+  )}"/>`;
   }
 
-  function escapeXml(value: string) {
-    return value
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&apos;");
-  }
+  /*
+   * =========================
+   * DOWNLOAD PNG
+   * =========================
+   */
 
   async function downloadPNG() {
-    if (!qrText.trim()) return;
+    if (!qrText.trim()) {
+      return;
+    }
 
     try {
       setDownloading(true);
@@ -925,9 +1515,12 @@ END:VCARD`;
         );
 
       const link =
-        document.createElement("a");
+        document.createElement(
+          "a"
+        );
 
-      link.href = dataUrl;
+      link.href =
+        dataUrl;
 
       link.download =
         `qr-pro-${size}x${size}.png`;
@@ -942,7 +1535,9 @@ END:VCARD`;
         link
       );
     } catch (error) {
-      console.error(error);
+      console.error(
+        error
+      );
 
       alert(
         "Не удалось создать PNG."
@@ -952,8 +1547,16 @@ END:VCARD`;
     }
   }
 
+  /*
+   * =========================
+   * DOWNLOAD SVG
+   * =========================
+   */
+
   async function downloadSVG() {
-    if (!qrText.trim()) return;
+    if (!qrText.trim()) {
+      return;
+    }
 
     try {
       setDownloading(true);
@@ -969,25 +1572,33 @@ END:VCARD`;
 
       const captionSpace =
         captionEnabled
-          ? Math.floor(size * 0.12)
+          ? Math.floor(
+              size * 0.12
+            )
           : 0;
 
       const qrArea =
-        size - captionSpace;
+        size -
+        captionSpace;
 
       const quiet =
         Math.max(
           12,
-          Math.floor(size * 0.035)
+          Math.floor(
+            size * 0.035
+          )
         );
 
       const available =
-        qrArea - quiet * 2;
+        qrArea -
+        quiet * 2;
 
       const module =
-        available / matrix.size;
+        available /
+        matrix.size;
 
-      const parts: string[] = [];
+      const parts: string[] =
+        [];
 
       parts.push(
         `<rect x="0" y="0" width="${size}" height="${size}" fill="${escapeXml(
@@ -1037,12 +1648,14 @@ END:VCARD`;
               col /
                 Math.max(
                   1,
-                  matrix.size - 1
+                  matrix.size -
+                    1
                 ),
               row /
                 Math.max(
                   1,
-                  matrix.size - 1
+                  matrix.size -
+                    1
                 )
             );
 
@@ -1069,7 +1682,8 @@ END:VCARD`;
       parts.push(
         createSvgFinder(
           quiet +
-            (matrix.size - 7) *
+            (matrix.size -
+              7) *
               module,
           quiet,
           module,
@@ -1081,23 +1695,28 @@ END:VCARD`;
         createSvgFinder(
           quiet,
           quiet +
-            (matrix.size - 7) *
+            (matrix.size -
+              7) *
               module,
           module,
           foreground
         )
       );
 
-      if (borderEnabled) {
+      if (
+        borderEnabled
+      ) {
         parts.push(
           `<rect x="${
             borderWidth / 2
           }" y="${
             borderWidth / 2
           }" width="${
-            size - borderWidth
+            size -
+            borderWidth
           }" height="${
-            qrArea - borderWidth
+            qrArea -
+            borderWidth
           }" fill="none" stroke="${
             gradientEnabled
               ? gradientColor
@@ -1112,13 +1731,18 @@ END:VCARD`;
           (logoSize / 100);
 
         const x =
-          (size - logoPixels) / 2;
+          (size -
+            logoPixels) /
+          2;
 
         const y =
-          (qrArea - logoPixels) / 2;
+          (qrArea -
+            logoPixels) /
+          2;
 
         const padding =
-          logoPixels * 0.13;
+          logoPixels *
+          0.13;
 
         parts.push(
           `<rect x="${
@@ -1132,7 +1756,8 @@ END:VCARD`;
             logoPixels +
             padding * 2
           }" rx="${
-            logoPixels * 0.14
+            logoPixels *
+            0.14
           }" fill="${escapeXml(
             background
           )}"/>`
@@ -1145,7 +1770,9 @@ END:VCARD`;
         );
       }
 
-      if (captionEnabled) {
+      if (
+        captionEnabled
+      ) {
         const fontSize =
           Math.max(
             20,
@@ -1159,7 +1786,9 @@ END:VCARD`;
             size / 2
           }" y="${
             qrArea +
-            (size - qrArea) / 2
+            (size -
+              qrArea) /
+              2
           }" text-anchor="middle" dominant-baseline="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif" font-size="${fontSize}" font-weight="700" fill="${escapeXml(
             foreground
           )}">${escapeXml(
@@ -1191,9 +1820,12 @@ ${parts.join("\n")}
         );
 
       const link =
-        document.createElement("a");
+        document.createElement(
+          "a"
+        );
 
-      link.href = url;
+      link.href =
+        url;
 
       link.download =
         `qr-pro-${size}x${size}.svg`;
@@ -1210,12 +1842,13 @@ ${parts.join("\n")}
 
       setTimeout(
         () =>
-          URL.revokeObjectURL(url),
+          URL.revokeObjectURL(
+            url
+          ),
         1000
       );
     } catch (error) {
       console.error(
-        "SVG error:",
         error
       );
 
@@ -1227,22 +1860,33 @@ ${parts.join("\n")}
     }
   }
 
+  /*
+   * =========================
+   * LOGO
+   * =========================
+   */
+
   function handleLogoUpload(
     event: React.ChangeEvent<HTMLInputElement>
   ) {
     const file =
       event.target.files?.[0];
 
-    if (!file) return;
+    if (!file) {
+      return;
+    }
 
     setLogoError("");
 
     if (
-      !file.type.startsWith("image/")
+      !file.type.startsWith(
+        "image/"
+      )
     ) {
       setLogoError(
         "Можно загружать только изображения."
       );
+
       return;
     }
 
@@ -1253,156 +1897,351 @@ ${parts.join("\n")}
       setLogoError(
         "Размер логотипа не должен превышать 5 МБ."
       );
+
       return;
     }
 
     const reader =
       new FileReader();
 
-    reader.onload = () => {
-      if (
-        typeof reader.result ===
-        "string"
-      ) {
-        setLogo(
-          reader.result
+    reader.onload =
+      () => {
+        if (
+          typeof reader.result ===
+          "string"
+        ) {
+          setLogo(
+            reader.result
+          );
+        }
+      };
+
+    reader.onerror =
+      () => {
+        setLogoError(
+          "Не удалось загрузить логотип."
         );
-      }
-    };
+      };
 
-    reader.onerror = () => {
-      setLogoError(
-        "Не удалось загрузить логотип."
-      );
-    };
-
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(
+      file
+    );
   }
 
   function removeLogo() {
     setLogo(null);
+
     setLogoError("");
 
-    if (logoInputRef.current) {
+    if (
+      logoInputRef.current
+    ) {
       logoInputRef.current.value =
         "";
     }
   }
+
+  /*
+   * =========================
+   * PRESETS
+   * =========================
+   */
 
   function applyPreset(
     value: Preset
   ) {
     setPreset(value);
 
-    if (value === "classic") {
-      setForeground("#000000");
-      setBackground("#ffffff");
-      setGradientEnabled(false);
-      setDotStyle("square");
-      setCornerStyle("square");
-      setBorderEnabled(false);
-      setCaptionEnabled(false);
+    if (
+      value === "classic"
+    ) {
+      setForeground(
+        "#000000"
+      );
+
+      setBackground(
+        "#ffffff"
+      );
+
+      setGradientEnabled(
+        false
+      );
+
+      setDotStyle(
+        "square"
+      );
+
+      setCornerStyle(
+        "square"
+      );
+
+      setBorderEnabled(
+        false
+      );
+
+      setCaptionEnabled(
+        false
+      );
     }
 
-    if (value === "modern") {
-      setForeground("#111827");
-      setBackground("#ffffff");
-      setGradientEnabled(true);
-      setGradientColor("#6366f1");
-      setDotStyle("soft");
-      setCornerStyle("round");
-      setBorderEnabled(false);
-      setCaptionEnabled(false);
+    if (
+      value === "modern"
+    ) {
+      setForeground(
+        "#111827"
+      );
+
+      setBackground(
+        "#ffffff"
+      );
+
+      setGradientEnabled(
+        true
+      );
+
+      setGradientColor(
+        "#6366f1"
+      );
+
+      setDotStyle(
+        "soft"
+      );
+
+      setCornerStyle(
+        "round"
+      );
+
+      setBorderEnabled(
+        false
+      );
+
+      setCaptionEnabled(
+        false
+      );
     }
 
-    if (value === "neon") {
-      setForeground("#7c3aed");
-      setBackground("#050505");
-      setGradientEnabled(true);
-      setGradientColor("#06b6d4");
-      setDotStyle("round");
-      setCornerStyle("round");
-      setBorderEnabled(true);
-      setBorderWidth(20);
-      setCaptionEnabled(true);
-      setCaption("SCAN ME");
+    if (
+      value === "neon"
+    ) {
+      setForeground(
+        "#7c3aed"
+      );
+
+      setBackground(
+        "#050505"
+      );
+
+      setGradientEnabled(
+        true
+      );
+
+      setGradientColor(
+        "#06b6d4"
+      );
+
+      setDotStyle(
+        "round"
+      );
+
+      setCornerStyle(
+        "round"
+      );
+
+      setBorderEnabled(
+        true
+      );
+
+      setBorderWidth(
+        20
+      );
+
+      setCaptionEnabled(
+        true
+      );
+
+      setCaption(
+        "SCAN ME"
+      );
     }
 
-    if (value === "business") {
-      setForeground("#111111");
-      setBackground("#ffffff");
-      setGradientEnabled(false);
-      setDotStyle("soft");
-      setCornerStyle("round");
-      setBorderEnabled(true);
-      setBorderWidth(18);
-      setCaptionEnabled(true);
-      setCaption("Сканируй меня");
+    if (
+      value === "business"
+    ) {
+      setForeground(
+        "#111111"
+      );
+
+      setBackground(
+        "#ffffff"
+      );
+
+      setGradientEnabled(
+        false
+      );
+
+      setDotStyle(
+        "soft"
+      );
+
+      setCornerStyle(
+        "round"
+      );
+
+      setBorderEnabled(
+        true
+      );
+
+      setBorderWidth(
+        18
+      );
+
+      setCaptionEnabled(
+        true
+      );
+
+      setCaption(
+        "Сканируй меня"
+      );
     }
   }
+
+  /*
+   * =========================
+   * CLEAR
+   * =========================
+   */
 
   function clearAll() {
     setText("");
 
     setWifiSSID("");
+
     setWifiPassword("");
-    setWifiSecurity("WPA");
-    setWifiHidden(false);
+
+    setWifiSecurity(
+      "WPA"
+    );
+
+    setWifiHidden(
+      false
+    );
 
     setContactName("");
+
     setContactPhone("");
+
     setContactEmail("");
-    setContactCountryCode("+998");
+
+    setContactCountry(
+      countries[0]
+    );
+
+    setCountryOpen(
+      false
+    );
 
     setLogo(null);
+
     setLogoError("");
 
-    setForeground("#000000");
-    setBackground("#ffffff");
+    setForeground(
+      "#000000"
+    );
 
-    setGradientEnabled(false);
-    setGradientColor("#6366f1");
+    setBackground(
+      "#ffffff"
+    );
 
-    setDotStyle("square");
-    setCornerStyle("square");
+    setGradientEnabled(
+      false
+    );
 
-    setBorderEnabled(false);
-    setBorderWidth(20);
+    setGradientColor(
+      "#6366f1"
+    );
 
-    setCaptionEnabled(false);
-    setCaption("Сканируй меня");
+    setDotStyle(
+      "square"
+    );
 
-    setPreset("classic");
-    setGenerated(false);
-    setShowWifiInfo(false);
+    setCornerStyle(
+      "square"
+    );
 
-    if (logoInputRef.current) {
+    setBorderEnabled(
+      false
+    );
+
+    setBorderWidth(
+      20
+    );
+
+    setCaptionEnabled(
+      false
+    );
+
+    setCaption(
+      "Сканируй меня"
+    );
+
+    setPreset(
+      "classic"
+    );
+
+    setGenerated(
+      false
+    );
+
+    setShowWifiInfo(
+      false
+    );
+
+    if (
+      logoInputRef.current
+    ) {
       logoInputRef.current.value =
         "";
     }
   }
 
+  /*
+   * =========================
+   * AUTO RENDER
+   * =========================
+   */
+
   useEffect(() => {
-    let cancelled = false;
+    let cancelled =
+      false;
 
     async function run() {
-      if (!qrText.trim()) {
-        setGenerated(false);
+      if (
+        !qrText.trim()
+      ) {
+        setGenerated(
+          false
+        );
+
         return;
       }
 
       try {
-        if (!cancelled) {
+        if (
+          !cancelled
+        ) {
           await renderQR();
         }
       } catch (error) {
         console.error(
-          "QR render error:",
           error
         );
 
-        if (!cancelled) {
-          setGenerated(false);
+        if (
+          !cancelled
+        ) {
+          setGenerated(
+            false
+          );
         }
       }
     }
@@ -1429,6 +2268,12 @@ ${parts.join("\n")}
     logo,
     logoSize,
   ]);
+
+  /*
+   * =========================
+   * UI
+   * =========================
+   */
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
@@ -1480,25 +2325,30 @@ ${parts.join("\n")}
                   "Текст",
                   "Wi-Fi",
                   "Контакт",
-                ].map((type) => (
+                ].map(
+                  (type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => {
+                        setMode(
+                          type
+                        );
 
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => {
-                      setMode(type);
-                      setShowWifiInfo(false);
-                    }}
-                    className={`rounded-xl border px-3 py-3 text-sm font-semibold transition ${
-                      mode === type
-                        ? "border-white bg-white text-slate-950"
-                        : "border-slate-700 bg-slate-950 text-slate-300 hover:border-slate-500"
-                    }`}
-                  >
-                    {type}
-                  </button>
-
-                ))}
+                        setShowWifiInfo(
+                          false
+                        );
+                      }}
+                      className={`rounded-xl border px-3 py-3 text-sm font-semibold transition ${
+                        mode === type
+                          ? "border-white bg-white text-slate-950"
+                          : "border-slate-700 bg-slate-950 text-slate-300 hover:border-slate-500"
+                      }`}
+                    >
+                      {type}
+                    </button>
+                  )
+                )}
 
               </div>
 
@@ -1508,7 +2358,6 @@ ${parts.join("\n")}
 
             {(mode === "URL" ||
               mode === "Текст") && (
-
               <div className="mb-6">
 
                 <label className="mb-2 block text-sm font-medium text-slate-300">
@@ -1533,13 +2382,11 @@ ${parts.join("\n")}
                 />
 
               </div>
-
             )}
 
             {/* CONTACT */}
 
             {mode === "Контакт" && (
-
               <div className="mb-6 space-y-4">
 
                 <div>
@@ -1550,7 +2397,9 @@ ${parts.join("\n")}
 
                   <input
                     type="text"
-                    value={contactName}
+                    value={
+                      contactName
+                    }
                     onChange={(e) =>
                       setContactName(
                         e.target.value
@@ -1562,6 +2411,8 @@ ${parts.join("\n")}
 
                 </div>
 
+                {/* PHONE */}
+
                 <div>
 
                   <label className="mb-2 block text-sm font-medium text-slate-300">
@@ -1570,55 +2421,170 @@ ${parts.join("\n")}
 
                   <div className="flex gap-2">
 
-                    <select
-                      value={
-                        contactCountryCode
-                      }
-                      onChange={(e) =>
-                        setContactCountryCode(
-                          e.target.value
-                        )
-                      }
-                      className="w-[155px] shrink-0 rounded-xl border border-slate-700 bg-slate-950 px-3 py-3 text-sm text-white outline-none focus:border-white"
-                    >
+                    {/* COUNTRY SELECT */}
 
-                      {countryCodes.map(
-                        (item) => (
+                    <div className="relative w-[145px] shrink-0">
 
-                          <option
-                            key={`${item.country}-${item.code}`}
-                            value={item.code}
-                          >
-                            {item.country}{" "}
-                            {item.code}
-                          </option>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCountryOpen(
+                            !countryOpen
+                          )
+                        }
+                        className="flex h-[50px] w-full items-center justify-between rounded-xl border border-slate-700 bg-slate-950 px-3 text-left outline-none transition hover:border-slate-500 focus:border-white"
+                      >
 
-                        )
+                        <span className="flex min-w-0 items-center gap-2">
+
+                          <span className="text-xl leading-none">
+                            {
+                              contactCountry.flag
+                            }
+                          </span>
+
+                          <span className="font-medium">
+                            {
+                              contactCountry.code
+                            }
+                          </span>
+
+                        </span>
+
+                        <span className="text-xs text-slate-500">
+                          ▼
+                        </span>
+
+                      </button>
+
+                      {countryOpen && (
+                        <>
+
+                          <button
+                            type="button"
+                            aria-label="Закрыть список стран"
+                            className="fixed inset-0 z-40 cursor-default"
+                            onClick={() =>
+                              setCountryOpen(
+                                false
+                              )
+                            }
+                          />
+
+                          <div className="absolute left-0 top-[56px] z-50 max-h-[360px] w-[290px] overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900 p-2 shadow-2xl">
+
+                            {countries.map(
+                              (
+                                country,
+                                index
+                              ) => (
+                                <button
+                                  type="button"
+                                  key={`${country.code}-${country.name}-${index}`}
+                                  onClick={() =>
+                                    handleCountryChange(
+                                      country
+                                    )
+                                  }
+                                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition hover:bg-slate-800"
+                                >
+
+                                  <span className="w-8 text-xl">
+                                    {
+                                      country.flag
+                                    }
+                                  </span>
+
+                                  <span className="flex-1 truncate">
+                                    {
+                                      country.name
+                                    }
+                                  </span>
+
+                                  <span className="font-semibold text-slate-300">
+                                    {
+                                      country.code
+                                    }
+                                  </span>
+
+                                </button>
+                              )
+                            )}
+
+                          </div>
+
+                        </>
                       )}
 
-                    </select>
+                    </div>
+
+                    {/* PHONE INPUT */}
 
                     <input
                       type="tel"
+                      inputMode="numeric"
+                      autoComplete="tel"
                       value={
                         contactPhone
                       }
                       onChange={(e) =>
-                        setContactPhone(
+                        handlePhoneChange(
                           e.target.value
                         )
                       }
-                      placeholder="90 123 45 67"
+                      placeholder={
+                        contactCountry.groups
+                          .map(
+                            (
+                              group
+                            ) =>
+                              "0".repeat(
+                                group
+                              )
+                          )
+                          .join(" ")
+                      }
+                      maxLength={
+                        contactCountry.digits +
+                        contactCountry.groups
+                          .length -
+                        1
+                      }
                       className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-white"
                     />
 
                   </div>
 
-                  <p className="mt-2 text-xs text-slate-500">
-                    Выберите код страны и введите номер без кода страны.
-                  </p>
+                  <div className="mt-2 flex justify-between text-xs text-slate-500">
+
+                    <span>
+                      Формат:{" "}
+                      {contactCountry.groups
+                        .map(
+                          (group) =>
+                            "0".repeat(
+                              group
+                            )
+                        )
+                        .join(" ")}
+                    </span>
+
+                    <span>
+                      {
+                        getPhoneDigits(
+                          contactPhone
+                        ).length
+                      }/
+                      {
+                        contactCountry.digits
+                      }
+                    </span>
+
+                  </div>
 
                 </div>
+
+                {/* EMAIL */}
 
                 <div>
 
@@ -1651,27 +2617,23 @@ ${parts.join("\n")}
                     !isValidEmail(
                       contactEmail
                     ) && (
-
                       <div className="mt-2 rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-400">
                         ❌ Неверный Email. Используйте формат: example@mail.com
                       </div>
-
                     )}
 
                 </div>
 
                 <div className="rounded-xl border border-slate-800 bg-slate-950 p-3 text-xs text-slate-500">
-                  💡 После сканирования пользователь сможет добавить этот контакт прямо в телефон.
+                  💡 После сканирования QR пользователь сможет добавить контакт прямо в телефон.
                 </div>
 
               </div>
-
             )}
 
             {/* WIFI */}
 
             {mode === "Wi-Fi" && (
-
               <div className="mb-6 space-y-5">
 
                 <div>
@@ -1715,7 +2677,6 @@ ${parts.join("\n")}
                 </div>
 
                 {showWifiInfo && (
-
                   <div className="rounded-2xl border border-blue-900/60 bg-blue-950/40 p-4 text-sm text-blue-200">
 
                     📶 Веб-приложение на iPhone не может получить список доступных Wi-Fi сетей.
@@ -1733,7 +2694,6 @@ ${parts.join("\n")}
                     </button>
 
                   </div>
-
                 )}
 
                 <div>
@@ -1818,7 +2778,6 @@ ${parts.join("\n")}
                 </label>
 
               </div>
-
             )}
 
             {/* PRESETS */}
@@ -1833,17 +2792,31 @@ ${parts.join("\n")}
 
                 {(
                   [
-                    ["classic", "Classic"],
-                    ["modern", "Modern"],
-                    ["neon", "Neon"],
-                    ["business", "Business"],
+                    [
+                      "classic",
+                      "Classic",
+                    ],
+                    [
+                      "modern",
+                      "Modern",
+                    ],
+                    [
+                      "neon",
+                      "Neon",
+                    ],
+                    [
+                      "business",
+                      "Business",
+                    ],
                   ] as [
                     Preset,
                     string
                   ][]
                 ).map(
-                  ([value, label]) => (
-
+                  ([
+                    value,
+                    label,
+                  ]) => (
                     <button
                       key={value}
                       onClick={() =>
@@ -1852,14 +2825,14 @@ ${parts.join("\n")}
                         )
                       }
                       className={`rounded-xl border p-3 text-sm ${
-                        preset === value
+                        preset ===
+                        value
                           ? "border-white bg-white text-slate-950"
                           : "border-slate-700"
                       }`}
                     >
                       {label}
                     </button>
-
                   )
                 )}
 
@@ -1989,7 +2962,6 @@ ${parts.join("\n")}
               </label>
 
               {gradientEnabled && (
-
                 <div className="mt-4 flex gap-2">
 
                   <input
@@ -2018,7 +2990,6 @@ ${parts.join("\n")}
                   />
 
                 </div>
-
               )}
 
             </div>
@@ -2040,7 +3011,8 @@ ${parts.join("\n")}
                     )
                   }
                   className={`rounded-xl border p-3 text-sm ${
-                    dotStyle === "square"
+                    dotStyle ===
+                    "square"
                       ? "border-white bg-white text-slate-950"
                       : "border-slate-700"
                   }`}
@@ -2055,7 +3027,8 @@ ${parts.join("\n")}
                     )
                   }
                   className={`rounded-xl border p-3 text-sm ${
-                    dotStyle === "round"
+                    dotStyle ===
+                    "round"
                       ? "border-white bg-white text-slate-950"
                       : "border-slate-700"
                   }`}
@@ -2070,7 +3043,8 @@ ${parts.join("\n")}
                     )
                   }
                   className={`rounded-xl border p-3 text-sm ${
-                    dotStyle === "soft"
+                    dotStyle ===
+                    "soft"
                       ? "border-white bg-white text-slate-950"
                       : "border-slate-700"
                   }`}
@@ -2099,7 +3073,8 @@ ${parts.join("\n")}
                     )
                   }
                   className={`rounded-xl border p-3 ${
-                    cornerStyle === "square"
+                    cornerStyle ===
+                    "square"
                       ? "border-white bg-white text-slate-950"
                       : "border-slate-700"
                   }`}
@@ -2114,7 +3089,8 @@ ${parts.join("\n")}
                     )
                   }
                   className={`rounded-xl border p-3 ${
-                    cornerStyle === "round"
+                    cornerStyle ===
+                    "round"
                       ? "border-white bg-white text-slate-950"
                       : "border-slate-700"
                   }`}
@@ -2141,7 +3117,9 @@ ${parts.join("\n")}
               {!logo ? (
                 <>
                   <input
-                    ref={logoInputRef}
+                    ref={
+                      logoInputRef
+                    }
                     type="file"
                     accept="image/png,image/jpeg,image/webp,image/svg+xml"
                     onChange={
@@ -2207,23 +3185,27 @@ ${parts.join("\n")}
 
                       {logoSizes.map(
                         (value) => (
-
                           <button
-                            key={value}
+                            key={
+                              value
+                            }
                             onClick={() =>
                               setLogoSize(
                                 value
                               )
                             }
                             className={`rounded-xl border p-3 text-xs ${
-                              logoSize === value
+                              logoSize ===
+                              value
                                 ? "border-white bg-white text-slate-950"
                                 : "border-slate-700"
                             }`}
                           >
-                            {value}%
+                            {
+                              value
+                            }
+                            %
                           </button>
-
                         )
                       )}
 
@@ -2276,11 +3258,14 @@ ${parts.join("\n")}
               </label>
 
               {borderEnabled && (
-
                 <div className="mt-4">
 
                   <label className="mb-2 block text-xs text-slate-400">
-                    Толщина: {borderWidth}px
+                    Толщина:{" "}
+                    {
+                      borderWidth
+                    }
+                    px
                   </label>
 
                   <input
@@ -2301,7 +3286,6 @@ ${parts.join("\n")}
                   />
 
                 </div>
-
               )}
 
             </div>
@@ -2340,7 +3324,6 @@ ${parts.join("\n")}
               </label>
 
               {captionEnabled && (
-
                 <input
                   value={
                     caption
@@ -2353,7 +3336,6 @@ ${parts.join("\n")}
                   placeholder="Сканируй меня"
                   className="mt-4 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 outline-none focus:border-white"
                 />
-
               )}
 
             </div>
@@ -2370,23 +3352,26 @@ ${parts.join("\n")}
 
                 {sizes.map(
                   (value) => (
-
                     <button
-                      key={value}
+                      key={
+                        value
+                      }
                       onClick={() =>
                         setSize(
                           value
                         )
                       }
                       className={`rounded-xl border p-3 text-sm ${
-                        size === value
+                        size ===
+                        value
                           ? "border-white bg-white text-slate-950"
                           : "border-slate-700"
                       }`}
                     >
-                      {value}
+                      {
+                        value
+                      }
                     </button>
-
                   )
                 )}
 
@@ -2410,32 +3395,38 @@ ${parts.join("\n")}
                   ["Q", "25%"],
                   ["H", "30%"],
                 ].map(
-                  ([level, percent]) => (
-
+                  ([
+                    level,
+                    percent,
+                  ]) => (
                     <button
-                      key={level}
+                      key={
+                        level
+                      }
                       onClick={() =>
                         setErrorLevel(
                           level as ErrorLevel
                         )
                       }
                       className={`rounded-xl border p-3 ${
-                        errorLevel === level
+                        errorLevel ===
+                        level
                           ? "border-white bg-white text-slate-950"
                           : "border-slate-700"
                       }`}
                     >
-
                       <div className="font-semibold">
-                        {level}
+                        {
+                          level
+                        }
                       </div>
 
                       <div className="text-xs opacity-60">
-                        {percent}
+                        {
+                          percent
+                        }
                       </div>
-
                     </button>
-
                   )
                 )}
 
@@ -2511,10 +3502,9 @@ ${parts.join("\n")}
             <div className="flex flex-1 items-center justify-center overflow-hidden rounded-3xl bg-white p-5">
 
               {!generated && (
-
                 <div className="text-center text-slate-400">
 
-                  <div className="mx-auto mb-4 flex h-48 w-48 items-center justify-center rounded-2xl border-2 border-dashed border-slate-300">
+                  <div className="mx-auto mb-4 flex h-48 w-48 items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 text-slate-400">
                     QR
                   </div>
 
@@ -2523,7 +3513,6 @@ ${parts.join("\n")}
                   </p>
 
                 </div>
-
               )}
 
               <canvas
@@ -2540,7 +3529,6 @@ ${parts.join("\n")}
             </div>
 
             {generated && (
-
               <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm">
 
                 <div className="flex justify-between">
@@ -2562,7 +3550,13 @@ ${parts.join("\n")}
                   </span>
 
                   <span>
-                    {size}×{size}
+                    {
+                      size
+                    }
+                    ×
+                    {
+                      size
+                    }
                   </span>
 
                 </div>
@@ -2574,9 +3568,11 @@ ${parts.join("\n")}
                   </span>
 
                   <span>
-                    {dotStyle === "square"
+                    {dotStyle ===
+                    "square"
                       ? "Квадрат"
-                      : dotStyle === "round"
+                      : dotStyle ===
+                        "round"
                       ? "Круг"
                       : "Soft"}
                   </span>
@@ -2590,16 +3586,17 @@ ${parts.join("\n")}
                   </span>
 
                   <span>
-                    {cornerStyle === "square"
+                    {cornerStyle ===
+                    "square"
                       ? "Квадратные"
                       : "Круглые"}
                   </span>
 
                 </div>
 
-                {mode === "Контакт" &&
+                {mode ===
+                  "Контакт" &&
                   contactPhone && (
-
                     <div className="mt-2 flex justify-between">
 
                       <span className="text-slate-500">
@@ -2607,16 +3604,21 @@ ${parts.join("\n")}
                       </span>
 
                       <span>
-                        {contactCountryCode}{" "}
-                        {contactPhone}
+                        {
+                          contactCountry.flag
+                        }{" "}
+                        {
+                          contactCountry.code
+                        }{" "}
+                        {
+                          contactPhone
+                        }
                       </span>
 
                     </div>
-
                   )}
 
                 {logo && (
-
                   <div className="mt-2 flex justify-between">
 
                     <span className="text-slate-500">
@@ -2624,15 +3626,16 @@ ${parts.join("\n")}
                     </span>
 
                     <span>
-                      {logoSize}%
+                      {
+                        logoSize
+                      }
+                      %
                     </span>
 
                   </div>
-
                 )}
 
               </div>
-
             )}
 
           </section>
