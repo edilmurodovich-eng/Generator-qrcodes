@@ -5,11 +5,20 @@ import QRCode from "qrcode";
 
 const sizes = [512, 1024, 2048, 4096, 8192];
 
+const logoSizes = [
+  { value: 10, label: "10%" },
+  { value: 15, label: "15%" },
+  { value: 20, label: "20%" },
+  { value: 25, label: "25%" },
+  { value: 30, label: "30%" },
+];
+
 type ErrorLevel = "L" | "M" | "Q" | "H";
 type WifiSecurity = "WPA" | "WEP" | "nopass";
 
 export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   const [mode, setMode] = useState("URL");
 
@@ -32,7 +41,15 @@ export default function Home() {
   const [generated, setGenerated] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
-  const [showWifiInfo, setShowWifiInfo] = useState(false);
+  const [showWifiInfo, setShowWifiInfo] =
+    useState(false);
+
+  const [logo, setLogo] = useState<string | null>(null);
+
+  const [logoSize, setLogoSize] = useState(20);
+
+  const [logoError, setLogoError] =
+    useState("");
 
   function escapeWifi(value: string) {
     return value.replace(/([\\;,:"])/g, "\\$1");
@@ -42,9 +59,9 @@ export default function Home() {
     if (mode === "Wi-Fi") {
       return `WIFI:T:${wifiSecurity};S:${escapeWifi(
         wifiSSID
-      )};P:${escapeWifi(wifiPassword)};H:${
-        wifiHidden ? "true" : "false"
-      };;`;
+      )};P:${escapeWifi(
+        wifiPassword
+      )};H:${wifiHidden ? "true" : "false"};;`;
     }
 
     return text;
@@ -52,14 +69,74 @@ export default function Home() {
 
   const qrText = getQRText();
 
-  useEffect(() => {
-    if (!qrText.trim() || !canvasRef.current) {
-      setGenerated(false);
+  /*
+   * Загрузка логотипа
+   */
+
+  function handleLogoUpload(
+    event: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    setLogoError("");
+
+    if (!file.type.startsWith("image/")) {
+      setLogoError(
+        "Можно загружать только изображения."
+      );
       return;
     }
 
-    QRCode.toCanvas(
-      canvasRef.current,
+    if (file.size > 5 * 1024 * 1024) {
+      setLogoError(
+        "Размер логотипа не должен превышать 5 МБ."
+      );
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      if (
+        typeof reader.result === "string"
+      ) {
+        setLogo(reader.result);
+      }
+    };
+
+    reader.onerror = () => {
+      setLogoError(
+        "Не удалось загрузить логотип."
+      );
+    };
+
+    reader.readAsDataURL(file);
+  }
+
+  function removeLogo() {
+    setLogo(null);
+    setLogoError("");
+
+    if (logoInputRef.current) {
+      logoInputRef.current.value = "";
+    }
+  }
+
+  /*
+   * Генерация QR + логотип
+   */
+
+  async function drawQRWithLogo() {
+    const canvas = canvasRef.current;
+
+    if (!canvas || !qrText.trim()) {
+      return;
+    }
+
+    await QRCode.toCanvas(
+      canvas,
       qrText,
       {
         width: size,
@@ -69,28 +146,139 @@ export default function Home() {
           dark: foreground,
           light: background,
         },
-      },
-      (error) => {
-        if (error) {
-          console.error("QR generation error:", error);
-          setGenerated(false);
+      }
+    );
+
+    if (!logo) {
+      return;
+    }
+
+    await new Promise<void>((resolve) => {
+      const image = new Image();
+
+      image.onload = () => {
+        const ctx = canvas.getContext("2d");
+
+        if (!ctx) {
+          resolve();
           return;
         }
 
-        setGenerated(true);
+        const logoPixels =
+          size * (logoSize / 100);
+
+        const x =
+          (size - logoPixels) / 2;
+
+        const y =
+          (size - logoPixels) / 2;
+
+        /*
+         * Белая подложка вокруг логотипа.
+         * Она помогает сохранить читаемость QR.
+         */
+
+        const padding =
+          logoPixels * 0.12;
+
+        ctx.save();
+
+        ctx.fillStyle = background;
+
+        ctx.beginPath();
+
+        ctx.roundRect(
+          x - padding,
+          y - padding,
+          logoPixels + padding * 2,
+          logoPixels + padding * 2,
+          logoPixels * 0.12
+        );
+
+        ctx.fill();
+
+        /*
+         * Рисуем логотип.
+         */
+
+        ctx.drawImage(
+          image,
+          x,
+          y,
+          logoPixels,
+          logoPixels
+        );
+
+        ctx.restore();
+
+        resolve();
+      };
+
+      image.onerror = () => {
+        resolve();
+      };
+
+      image.src = logo;
+    });
+  }
+
+  /*
+   * Автоматическое обновление QR
+   */
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function generate() {
+      if (!qrText.trim() || !canvasRef.current) {
+        setGenerated(false);
+        return;
       }
-    );
+
+      try {
+        await drawQRWithLogo();
+
+        if (!cancelled) {
+          setGenerated(true);
+        }
+      } catch (error) {
+        console.error(
+          "QR generation error:",
+          error
+        );
+
+        if (!cancelled) {
+          setGenerated(false);
+        }
+      }
+    }
+
+    generate();
+
+    return () => {
+      cancelled = true;
+    };
   }, [
     qrText,
     size,
     foreground,
     background,
     errorLevel,
+    logo,
+    logoSize,
   ]);
+
+  /*
+   * Wi-Fi
+   */
 
   function findWifiNetworks() {
     setShowWifiInfo(true);
   }
+
+  /*
+   * PNG
+   */
 
   async function downloadPNG() {
     if (!qrText.trim()) return;
@@ -98,17 +286,21 @@ export default function Home() {
     try {
       setDownloading(true);
 
-      const dataUrl = await QRCode.toDataURL(qrText, {
-        width: size,
-        margin: 4,
-        errorCorrectionLevel: errorLevel,
-        color: {
-          dark: foreground,
-          light: background,
-        },
-      });
+      await drawQRWithLogo();
 
-      const newWindow = window.open("", "_blank");
+      const canvas = canvasRef.current;
+
+      if (!canvas) {
+        throw new Error(
+          "Canvas not available"
+        );
+      }
+
+      const dataUrl =
+        canvas.toDataURL("image/png");
+
+      const newWindow =
+        window.open("", "_blank");
 
       if (!newWindow) {
         alert(
@@ -215,6 +407,7 @@ export default function Home() {
 
             <div class="subtitle">
               ${size} × ${size} px • PNG
+              ${logo ? " • Logo" : ""}
             </div>
 
             <div class="qr-wrapper">
@@ -229,7 +422,8 @@ export default function Home() {
             <div class="instruction">
               На iPhone нажмите
               <strong>«Поделиться»</strong>
-              → <strong>«Сохранить изображение»</strong>.
+              →
+              <strong>«Сохранить изображение»</strong>.
             </div>
 
           </div>
@@ -240,12 +434,22 @@ export default function Home() {
 
       newWindow.document.close();
     } catch (error) {
-      console.error("PNG export error:", error);
-      alert("Не удалось создать PNG.");
+      console.error(
+        "PNG export error:",
+        error
+      );
+
+      alert(
+        "Не удалось создать PNG."
+      );
     } finally {
       setDownloading(false);
     }
   }
+
+  /*
+   * SVG
+   */
 
   async function downloadSVG() {
     if (!qrText.trim()) return;
@@ -253,43 +457,119 @@ export default function Home() {
     try {
       setDownloading(true);
 
-      const svg = await QRCode.toString(qrText, {
-        type: "svg",
-        width: size,
-        margin: 4,
-        errorCorrectionLevel: errorLevel,
-        color: {
-          dark: foreground,
-          light: background,
-        },
-      });
+      let svg =
+        await QRCode.toString(
+          qrText,
+          {
+            type: "svg",
+            width: size,
+            margin: 4,
+            errorCorrectionLevel:
+              errorLevel,
+            color: {
+              dark: foreground,
+              light: background,
+            },
+          }
+        );
 
-      const blob = new Blob([svg], {
-        type: "image/svg+xml;charset=utf-8",
-      });
+      /*
+       * Добавляем логотип внутрь SVG.
+       */
 
-      const url = URL.createObjectURL(blob);
+      if (logo) {
+        const logoPixels =
+          size * (logoSize / 100);
 
-      const link = document.createElement("a");
+        const x =
+          (size - logoPixels) / 2;
+
+        const y =
+          (size - logoPixels) / 2;
+
+        const padding =
+          logoPixels * 0.12;
+
+        const rectX =
+          x - padding;
+
+        const rectY =
+          y - padding;
+
+        const rectSize =
+          logoPixels + padding * 2;
+
+        const logoSvg = `
+          <rect
+            x="${rectX}"
+            y="${rectY}"
+            width="${rectSize}"
+            height="${rectSize}"
+            rx="${logoPixels * 0.12}"
+            fill="${background}"
+          />
+
+          <image
+            href="${logo}"
+            x="${x}"
+            y="${y}"
+            width="${logoPixels}"
+            height="${logoPixels}"
+            preserveAspectRatio="xMidYMid meet"
+          />
+        `;
+
+        svg = svg.replace(
+          "</svg>",
+          `${logoSvg}</svg>`
+        );
+      }
+
+      const blob =
+        new Blob([svg], {
+          type:
+            "image/svg+xml;charset=utf-8",
+        });
+
+      const url =
+        URL.createObjectURL(blob);
+
+      const link =
+        document.createElement("a");
 
       link.href = url;
+
       link.download =
-        `qr-pro-${mode.toLowerCase()}-${size}x${size}.svg`;
+        `qr-pro-${mode.toLowerCase()}-${size}x${size}${
+          logo ? "-logo" : ""
+        }.svg`;
 
       document.body.appendChild(link);
+
       link.click();
+
       document.body.removeChild(link);
 
       setTimeout(() => {
         URL.revokeObjectURL(url);
       }, 1000);
     } catch (error) {
-      console.error("SVG export error:", error);
-      alert("Не удалось создать SVG.");
+      console.error(
+        "SVG export error:",
+        error
+      );
+
+      alert(
+        "Не удалось создать SVG."
+      );
     } finally {
       setDownloading(false);
     }
   }
+
+  /*
+   * Очистка
+   */
 
   function clearAll() {
     setText("");
@@ -299,8 +579,15 @@ export default function Home() {
     setWifiSecurity("WPA");
     setWifiHidden(false);
 
+    setLogo(null);
+    setLogoError("");
+
     setGenerated(false);
     setShowWifiInfo(false);
+
+    if (logoInputRef.current) {
+      logoInputRef.current.value = "";
+    }
   }
 
   return (
@@ -317,6 +604,7 @@ export default function Home() {
           </div>
 
           <div>
+
             <h1 className="text-2xl font-bold">
               QR Pro
             </h1>
@@ -324,6 +612,7 @@ export default function Home() {
             <p className="text-sm text-slate-400">
               Генератор QR-кодов высокого разрешения
             </p>
+
           </div>
 
         </header>
@@ -341,7 +630,7 @@ export default function Home() {
             </h2>
 
             <p className="mb-6 text-sm text-slate-400">
-              Выберите тип данных.
+              Выберите тип данных и настройте QR.
             </p>
 
             {/* TYPE */}
@@ -419,8 +708,6 @@ export default function Home() {
 
               <div className="mb-6 space-y-5">
 
-                {/* SSID */}
-
                 <div>
 
                   <label className="mb-2 block text-sm font-medium text-slate-300">
@@ -445,33 +732,30 @@ export default function Home() {
                       onClick={findWifiNetworks}
                       className="flex shrink-0 items-center gap-2 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:border-white hover:bg-white hover:text-slate-950"
                     >
-                      <span className="text-base">
+                      <span>
                         🔍
                       </span>
 
                       <span className="hidden sm:inline">
                         Найти сети
                       </span>
-
                     </button>
 
                   </div>
 
                 </div>
 
-                {/* WIFI INFO */}
-
                 {showWifiInfo && (
 
                   <div className="rounded-2xl border border-blue-900/60 bg-blue-950/40 p-4">
 
-                    <div className="mb-2 flex items-start gap-3">
+                    <div className="flex items-start gap-3">
 
                       <div className="text-xl">
                         📶
                       </div>
 
-                      <div className="flex-1">
+                      <div>
 
                         <div className="font-semibold text-blue-100">
                           Сканирование Wi-Fi
@@ -487,13 +771,6 @@ export default function Home() {
 
                     </div>
 
-                    <p className="mt-3 text-sm leading-6 text-slate-300">
-                      Откройте настройки Wi-Fi на iPhone,
-                      посмотрите название нужной сети
-                      и вернитесь сюда, чтобы ввести её
-                      название.
-                    </p>
-
                     <button
                       type="button"
                       onClick={() =>
@@ -507,8 +784,6 @@ export default function Home() {
                   </div>
 
                 )}
-
-                {/* PASSWORD */}
 
                 <div>
 
@@ -533,8 +808,6 @@ export default function Home() {
                   />
 
                 </div>
-
-                {/* SECURITY */}
 
                 <div>
 
@@ -568,8 +841,6 @@ export default function Home() {
 
                 </div>
 
-                {/* HIDDEN */}
-
                 <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-700 bg-slate-950 p-4">
 
                   <input
@@ -596,16 +867,6 @@ export default function Home() {
                   </div>
 
                 </label>
-
-                {/* INFO */}
-
-                <div className="rounded-xl border border-slate-700 bg-slate-950 p-4 text-sm leading-6 text-slate-400">
-
-                  📱 После сканирования QR-кода
-                  телефон сможет предложить
-                  подключение к этой Wi-Fi сети.
-
-                </div>
 
               </div>
 
@@ -635,6 +896,137 @@ export default function Home() {
               </div>
 
             )}
+
+            {/* LOGO */}
+
+            <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-950 p-4">
+
+              <div className="mb-4">
+
+                <h3 className="font-semibold">
+                  🖼️ Логотип в QR
+                </h3>
+
+                <p className="mt-1 text-xs text-slate-500">
+                  Добавьте логотип в центр QR-кода.
+                </p>
+
+              </div>
+
+              {!logo ? (
+
+                <>
+
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                    onChange={handleLogoUpload}
+                    className="hidden"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      logoInputRef.current?.click()
+                    }
+                    className="w-full rounded-xl border border-dashed border-slate-600 px-4 py-5 text-sm font-semibold text-slate-300 transition hover:border-white hover:text-white"
+                  >
+                    🖼️ Загрузить логотип
+                  </button>
+
+                </>
+
+              ) : (
+
+                <div className="space-y-4">
+
+                  <div className="flex items-center gap-4">
+
+                    <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white p-2">
+
+                      <img
+                        src={logo}
+                        alt="Логотип"
+                        className="max-h-full max-w-full object-contain"
+                      />
+
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+
+                      <div className="font-medium">
+                        Логотип добавлен
+                      </div>
+
+                      <div className="mt-1 text-xs text-slate-500">
+                        Размер до 5 МБ
+                      </div>
+
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={removeLogo}
+                      className="rounded-lg border border-red-900/50 px-3 py-2 text-xs font-medium text-red-300 hover:bg-red-950/40"
+                    >
+                      Удалить
+                    </button>
+
+                  </div>
+
+                  <div>
+
+                    <label className="mb-2 block text-sm font-medium text-slate-300">
+                      Размер логотипа
+                    </label>
+
+                    <div className="grid grid-cols-5 gap-2">
+
+                      {logoSizes.map((item) => (
+
+                        <button
+                          key={item.value}
+                          type="button"
+                          onClick={() =>
+                            setLogoSize(
+                              item.value
+                            )
+                          }
+                          className={`rounded-xl border px-2 py-3 text-xs font-semibold transition ${
+                            logoSize ===
+                            item.value
+                              ? "border-white bg-white text-slate-950"
+                              : "border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500"
+                          }`}
+                        >
+                          {item.label}
+                        </button>
+
+                      ))}
+
+                    </div>
+
+                    <p className="mt-2 text-xs text-slate-500">
+                      Для надёжного сканирования
+                      рекомендуется 10–20%.
+                    </p>
+
+                  </div>
+
+                </div>
+
+              )}
+
+              {logoError && (
+
+                <p className="mt-3 text-xs text-red-400">
+                  {logoError}
+                </p>
+
+              )}
+
+            </div>
 
             {/* SIZE */}
 
@@ -721,6 +1113,15 @@ export default function Home() {
 
               </div>
 
+              {logo && (
+
+                <p className="mt-2 text-xs text-slate-500">
+                  При использовании логотипа
+                  рекомендуется коррекция H.
+                </p>
+
+              )}
+
             </div>
 
             {/* COLORS */}
@@ -795,7 +1196,7 @@ export default function Home() {
 
             </div>
 
-            {/* BUTTONS */}
+            {/* DOWNLOAD */}
 
             <div className="mt-7 grid grid-cols-2 gap-3">
 
@@ -929,6 +1330,22 @@ export default function Home() {
                   </span>
 
                 </div>
+
+                {logo && (
+
+                  <div className="mt-2 flex items-center justify-between">
+
+                    <span className="text-sm text-slate-400">
+                      Логотип
+                    </span>
+
+                    <span className="font-semibold">
+                      {logoSize}%
+                    </span>
+
+                  </div>
+
+                )}
 
               </div>
 
