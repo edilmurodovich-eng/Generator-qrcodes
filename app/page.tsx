@@ -5,26 +5,66 @@ import QRCode from "qrcode";
 
 const sizes = [512, 1024, 2048, 4096, 8192];
 
+type ErrorLevel = "L" | "M" | "Q" | "H";
+type WifiSecurity = "WPA" | "WEP" | "nopass";
+
 export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  const [mode, setMode] = useState("URL");
+
   const [text, setText] = useState("");
+
+  const [wifiSSID, setWifiSSID] = useState("");
+  const [wifiPassword, setWifiPassword] = useState("");
+  const [wifiSecurity, setWifiSecurity] =
+    useState<WifiSecurity>("WPA");
+  const [wifiHidden, setWifiHidden] = useState(false);
+
   const [size, setSize] = useState(1024);
-  const [foreground, setForeground] = useState("#000000");
-  const [background, setBackground] = useState("#ffffff");
-  const [errorLevel, setErrorLevel] = useState<"L" | "M" | "Q" | "H">("H");
-  const [generated, setGenerated] = useState(false);
-  const [downloading, setDownloading] = useState(false);
+
+  const [foreground, setForeground] =
+    useState("#000000");
+
+  const [background, setBackground] =
+    useState("#ffffff");
+
+  const [errorLevel, setErrorLevel] =
+    useState<ErrorLevel>("H");
+
+  const [generated, setGenerated] =
+    useState(false);
+
+  const [downloading, setDownloading] =
+    useState(false);
+
+  function escapeWifi(value: string) {
+    return value.replace(/([\\;,:"])/g, "\\$1");
+  }
+
+  function getQRText() {
+    if (mode === "Wi-Fi") {
+      return `WIFI:T:${wifiSecurity};S:${escapeWifi(
+        wifiSSID
+      )};P:${escapeWifi(wifiPassword)};H:${
+        wifiHidden ? "true" : "false"
+      };;`;
+    }
+
+    return text;
+  }
+
+  const qrText = getQRText();
 
   useEffect(() => {
-    if (!text.trim() || !canvasRef.current) {
+    if (!qrText.trim() || !canvasRef.current) {
       setGenerated(false);
       return;
     }
 
     QRCode.toCanvas(
       canvasRef.current,
-      text,
+      qrText,
       {
         width: size,
         margin: 4,
@@ -36,38 +76,52 @@ export default function Home() {
       },
       (error) => {
         if (error) {
-          console.error("QR generation error:", error);
+          console.error(
+            "QR generation error:",
+            error
+          );
+
           setGenerated(false);
+
           return;
         }
 
         setGenerated(true);
       }
     );
-  }, [text, size, foreground, background, errorLevel]);
+  }, [
+    qrText,
+    size,
+    foreground,
+    background,
+    errorLevel,
+  ]);
 
   async function downloadPNG() {
-    if (!text.trim()) return;
+    if (!qrText.trim()) return;
 
     try {
       setDownloading(true);
 
-      const dataUrl = await QRCode.toDataURL(text, {
-        width: size,
-        margin: 4,
-        errorCorrectionLevel: errorLevel,
-        color: {
-          dark: foreground,
-          light: background,
-        },
-      });
+      const dataUrl =
+        await QRCode.toDataURL(qrText, {
+          width: size,
+          margin: 4,
+          errorCorrectionLevel: errorLevel,
+          color: {
+            dark: foreground,
+            light: background,
+          },
+        });
 
-      const newWindow = window.open("", "_blank");
+      const newWindow =
+        window.open("", "_blank");
 
       if (!newWindow) {
         alert(
-          "Не удалось открыть страницу PNG. Разрешите всплывающие окна для QR Pro."
+          "Разрешите всплывающие окна для QR Pro."
         );
+
         return;
       }
 
@@ -76,10 +130,12 @@ export default function Home() {
         <html lang="ru">
         <head>
           <meta charset="UTF-8">
+
           <meta
             name="viewport"
             content="width=device-width, initial-scale=1"
           >
+
           <title>QR Pro — PNG</title>
 
           <style>
@@ -91,12 +147,15 @@ export default function Home() {
               margin: 0;
               min-height: 100vh;
               padding: 24px;
+
               display: flex;
               flex-direction: column;
               align-items: center;
               justify-content: center;
+
               background: #020617;
               color: white;
+
               font-family:
                 -apple-system,
                 BlinkMacSystemFont,
@@ -129,12 +188,10 @@ export default function Home() {
               border-radius: 20px;
               display: inline-block;
               max-width: 100%;
-              box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
             }
 
             img {
               display: block;
-              width: auto;
               max-width: min(80vw, 600px);
               height: auto;
             }
@@ -142,97 +199,130 @@ export default function Home() {
             .instruction {
               margin-top: 24px;
               padding: 16px 20px;
+
               border-radius: 16px;
+
               background: #0f172a;
               border: 1px solid #1e293b;
+
               color: #cbd5e1;
+
               line-height: 1.6;
               font-size: 14px;
-            }
-
-            .hint {
-              margin-top: 12px;
-              color: #64748b;
-              font-size: 12px;
             }
           </style>
         </head>
 
         <body>
+
           <div class="container">
-            <div class="title">QR Pro</div>
+
+            <div class="title">
+              QR Pro
+            </div>
 
             <div class="subtitle">
               ${size} × ${size} px • PNG
             </div>
 
             <div class="qr-wrapper">
-              <img src="${dataUrl}" alt="QR-код QR Pro">
+
+              <img
+                src="${dataUrl}"
+                alt="QR-код QR Pro"
+              />
+
             </div>
 
             <div class="instruction">
               На iPhone нажмите
-              <strong>«Поделиться»</strong>,
-              затем выберите
-              <strong>«Сохранить изображение»</strong>
-              или <strong>«Сохранить в Файлы»</strong>.
+              <strong>«Поделиться»</strong>
+              → <strong>«Сохранить изображение»</strong>.
             </div>
 
-            <div class="hint">
-              QR-код создан в высоком разрешении.
-            </div>
           </div>
+
         </body>
         </html>
       `);
 
       newWindow.document.close();
+
     } catch (error) {
-      console.error("PNG export error:", error);
-      alert("Не удалось создать PNG.");
+      console.error(
+        "PNG export error:",
+        error
+      );
+
+      alert(
+        "Не удалось создать PNG."
+      );
+
     } finally {
       setDownloading(false);
     }
   }
 
   async function downloadSVG() {
-    if (!text.trim()) return;
+    if (!qrText.trim()) return;
 
     try {
       setDownloading(true);
 
-      const svg = await QRCode.toString(text, {
-        type: "svg",
-        width: size,
-        margin: 4,
-        errorCorrectionLevel: errorLevel,
-        color: {
-          dark: foreground,
-          light: background,
-        },
-      });
+      const svg =
+        await QRCode.toString(
+          qrText,
+          {
+            type: "svg",
+            width: size,
+            margin: 4,
+            errorCorrectionLevel:
+              errorLevel,
 
-      const blob = new Blob([svg], {
-        type: "image/svg+xml;charset=utf-8",
-      });
+            color: {
+              dark: foreground,
+              light: background,
+            },
+          }
+        );
 
-      const url = URL.createObjectURL(blob);
+      const blob =
+        new Blob([svg], {
+          type:
+            "image/svg+xml;charset=utf-8",
+        });
 
-      const link = document.createElement("a");
+      const url =
+        URL.createObjectURL(blob);
+
+      const link =
+        document.createElement("a");
 
       link.href = url;
-      link.download = `qr-pro-${size}x${size}.svg`;
+
+      link.download =
+        `qr-pro-${mode.toLowerCase()}-${size}x${size}.svg`;
 
       document.body.appendChild(link);
+
       link.click();
+
       document.body.removeChild(link);
 
       setTimeout(() => {
         URL.revokeObjectURL(url);
       }, 1000);
+
     } catch (error) {
-      console.error("SVG export error:", error);
-      alert("Не удалось создать SVG.");
+      console.error(
+        "SVG export error:",
+        error
+      );
+
+      alert(
+        "Не удалось создать SVG."
+      );
+
     } finally {
       setDownloading(false);
     }
@@ -240,21 +330,31 @@ export default function Home() {
 
   function clearAll() {
     setText("");
+
+    setWifiSSID("");
+    setWifiPassword("");
+
+    setWifiSecurity("WPA");
+    setWifiHidden(false);
+
     setGenerated(false);
   }
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
+
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
 
         {/* HEADER */}
 
         <header className="mb-8 flex items-center gap-3">
+
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white font-black text-slate-950">
             QR
           </div>
 
           <div>
+
             <h1 className="text-2xl font-bold">
               QR Pro
             </h1>
@@ -262,7 +362,9 @@ export default function Home() {
             <p className="text-sm text-slate-400">
               Генератор QR-кодов высокого разрешения
             </p>
+
           </div>
+
         </header>
 
         {/* MAIN */}
@@ -278,51 +380,228 @@ export default function Home() {
             </h2>
 
             <p className="mb-6 text-sm text-slate-400">
-              Введите данные и настройте QR-код.
+              Выберите тип данных.
             </p>
 
             {/* TYPE */}
 
             <div className="mb-6">
+
               <label className="mb-2 block text-sm font-medium text-slate-300">
-                Тип данных
+                Тип QR-кода
               </label>
 
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
 
-                {["URL", "Текст", "Wi-Fi", "Контакт"].map(
-                  (type) => (
-                    <button
-                      key={type}
-                      type="button"
-                      className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-3 text-sm text-slate-300 transition hover:border-slate-500 hover:text-white"
-                    >
-                      {type}
-                    </button>
-                  )
-                )}
+                {[
+                  "URL",
+                  "Текст",
+                  "Wi-Fi",
+                  "Контакт",
+                ].map((type) => (
+
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() =>
+                      setMode(type)
+                    }
+                    className={`rounded-xl border px-3 py-3 text-sm font-medium transition ${
+                      mode === type
+                        ? "border-white bg-white text-slate-950"
+                        : "border-slate-700 bg-slate-950 text-slate-300 hover:border-slate-500"
+                    }`}
+                  >
+                    {type}
+                  </button>
+
+                ))}
 
               </div>
+
             </div>
 
-            {/* TEXT */}
+            {/* URL / TEXT */}
 
-            <div className="mb-6">
-              <label className="mb-2 block text-sm font-medium text-slate-300">
-                Текст или ссылка
-              </label>
+            {(mode === "URL" ||
+              mode === "Текст") && (
 
-              <textarea
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder="https://example.com"
-                className="min-h-36 w-full resize-none rounded-2xl border border-slate-700 bg-slate-950 p-4 text-white outline-none transition placeholder:text-slate-600 focus:border-white"
-              />
-            </div>
+              <div className="mb-6">
+
+                <label className="mb-2 block text-sm font-medium text-slate-300">
+
+                  {mode === "URL"
+                    ? "Ссылка"
+                    : "Текст"}
+
+                </label>
+
+                <textarea
+                  value={text}
+                  onChange={(e) =>
+                    setText(e.target.value)
+                  }
+                  placeholder={
+                    mode === "URL"
+                      ? "https://example.com"
+                      : "Введите текст"
+                  }
+                  className="min-h-36 w-full resize-none rounded-2xl border border-slate-700 bg-slate-950 p-4 text-white outline-none placeholder:text-slate-600 focus:border-white"
+                />
+
+              </div>
+
+            )}
+
+            {/* WIFI */}
+
+            {mode === "Wi-Fi" && (
+
+              <div className="mb-6 space-y-5">
+
+                <div>
+
+                  <label className="mb-2 block text-sm font-medium text-slate-300">
+                    Название Wi-Fi сети
+                  </label>
+
+                  <input
+                    value={wifiSSID}
+                    onChange={(e) =>
+                      setWifiSSID(
+                        e.target.value
+                      )
+                    }
+                    placeholder="My WiFi"
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-white"
+                  />
+
+                </div>
+
+                <div>
+
+                  <label className="mb-2 block text-sm font-medium text-slate-300">
+                    Пароль
+                  </label>
+
+                  <input
+                    type="text"
+                    value={wifiPassword}
+                    onChange={(e) =>
+                      setWifiPassword(
+                        e.target.value
+                      )
+                    }
+                    placeholder="Введите пароль"
+                    disabled={
+                      wifiSecurity ===
+                      "nopass"
+                    }
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-white disabled:opacity-40"
+                  />
+
+                </div>
+
+                <div>
+
+                  <label className="mb-2 block text-sm font-medium text-slate-300">
+                    Защита сети
+                  </label>
+
+                  <select
+                    value={wifiSecurity}
+                    onChange={(e) =>
+                      setWifiSecurity(
+                        e.target.value as WifiSecurity
+                      )
+                    }
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none"
+                  >
+
+                    <option value="WPA">
+                      WPA / WPA2 / WPA3
+                    </option>
+
+                    <option value="WEP">
+                      WEP
+                    </option>
+
+                    <option value="nopass">
+                      Без пароля
+                    </option>
+
+                  </select>
+
+                </div>
+
+                <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-700 bg-slate-950 p-4">
+
+                  <input
+                    type="checkbox"
+                    checked={wifiHidden}
+                    onChange={(e) =>
+                      setWifiHidden(
+                        e.target.checked
+                      )
+                    }
+                    className="h-5 w-5"
+                  />
+
+                  <div>
+
+                    <div className="font-medium">
+                      Скрытая сеть
+                    </div>
+
+                    <div className="text-xs text-slate-500">
+                      SSID не отображается в списке Wi-Fi
+                    </div>
+
+                  </div>
+
+                </label>
+
+                <div className="rounded-xl border border-blue-900/50 bg-blue-950/30 p-4 text-sm text-blue-200">
+
+                  📱 После сканирования QR-кода
+                  телефон сможет предложить
+                  подключение к этой Wi-Fi сети.
+
+                </div>
+
+              </div>
+
+            )}
+
+            {/* CONTACT */}
+
+            {mode === "Контакт" && (
+
+              <div className="mb-6">
+
+                <label className="mb-2 block text-sm font-medium text-slate-300">
+                  Контакт
+                </label>
+
+                <textarea
+                  value={text}
+                  onChange={(e) =>
+                    setText(e.target.value)
+                  }
+                  placeholder={
+                    "Имя: Иван Иванов\nТелефон: +79990000000\nEmail: example@mail.com"
+                  }
+                  className="min-h-36 w-full resize-none rounded-2xl border border-slate-700 bg-slate-950 p-4 text-white outline-none placeholder:text-slate-600 focus:border-white"
+                />
+
+              </div>
+
+            )}
 
             {/* SIZE */}
 
             <div className="mb-6">
+
               <label className="mb-2 block text-sm font-medium text-slate-300">
                 Разрешение
               </label>
@@ -330,10 +609,13 @@ export default function Home() {
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
 
                 {sizes.map((value) => (
+
                   <button
                     key={value}
                     type="button"
-                    onClick={() => setSize(value)}
+                    onClick={() =>
+                      setSize(value)
+                    }
                     className={`rounded-xl border px-3 py-3 text-sm transition ${
                       size === value
                         ? "border-white bg-white text-slate-950"
@@ -342,18 +624,17 @@ export default function Home() {
                   >
                     {value}
                   </button>
+
                 ))}
 
               </div>
 
-              <p className="mt-2 text-xs text-slate-500">
-                Максимум: 8192 × 8192 px
-              </p>
             </div>
 
-            {/* ERROR CORRECTION */}
+            {/* ERROR LEVEL */}
 
             <div className="mb-6">
+
               <label className="mb-2 block text-sm font-medium text-slate-300">
                 Коррекция ошибок
               </label>
@@ -365,32 +646,39 @@ export default function Home() {
                   ["M", "15%"],
                   ["Q", "25%"],
                   ["H", "30%"],
-                ].map(([level, percent]) => (
-                  <button
-                    key={level}
-                    type="button"
-                    onClick={() =>
-                      setErrorLevel(
-                        level as "L" | "M" | "Q" | "H"
-                      )
-                    }
-                    className={`rounded-xl border px-3 py-3 transition ${
-                      errorLevel === level
-                        ? "border-white bg-white text-slate-950"
-                        : "border-slate-700 bg-slate-950 text-slate-300"
-                    }`}
-                  >
-                    <div className="font-semibold">
-                      {level}
-                    </div>
+                ].map(
+                  ([level, percent]) => (
 
-                    <div className="text-xs opacity-60">
-                      {percent}
-                    </div>
-                  </button>
-                ))}
+                    <button
+                      key={level}
+                      type="button"
+                      onClick={() =>
+                        setErrorLevel(
+                          level as ErrorLevel
+                        )
+                      }
+                      className={`rounded-xl border px-3 py-3 transition ${
+                        errorLevel === level
+                          ? "border-white bg-white text-slate-950"
+                          : "border-slate-700 bg-slate-950 text-slate-300"
+                      }`}
+                    >
+
+                      <div className="font-semibold">
+                        {level}
+                      </div>
+
+                      <div className="text-xs opacity-60">
+                        {percent}
+                      </div>
+
+                    </button>
+
+                  )
+                )}
 
               </div>
+
             </div>
 
             {/* COLORS */}
@@ -398,6 +686,7 @@ export default function Home() {
             <div className="grid gap-4 sm:grid-cols-2">
 
               <div>
+
                 <label className="mb-2 block text-sm font-medium text-slate-300">
                   Цвет QR
                 </label>
@@ -408,7 +697,9 @@ export default function Home() {
                     type="color"
                     value={foreground}
                     onChange={(e) =>
-                      setForeground(e.target.value)
+                      setForeground(
+                        e.target.value
+                      )
                     }
                     className="h-11 w-16 cursor-pointer rounded-xl border border-slate-700 bg-slate-950"
                   />
@@ -416,17 +707,21 @@ export default function Home() {
                   <input
                     value={foreground}
                     onChange={(e) =>
-                      setForeground(e.target.value)
+                      setForeground(
+                        e.target.value
+                      )
                     }
                     className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm uppercase outline-none"
                   />
 
                 </div>
+
               </div>
 
               <div>
+
                 <label className="mb-2 block text-sm font-medium text-slate-300">
-                  Фон
+                  Цвет фона
                 </label>
 
                 <div className="flex gap-2">
@@ -435,7 +730,9 @@ export default function Home() {
                     type="color"
                     value={background}
                     onChange={(e) =>
-                      setBackground(e.target.value)
+                      setBackground(
+                        e.target.value
+                      )
                     }
                     className="h-11 w-16 cursor-pointer rounded-xl border border-slate-700 bg-slate-950"
                   />
@@ -443,24 +740,27 @@ export default function Home() {
                   <input
                     value={background}
                     onChange={(e) =>
-                      setBackground(e.target.value)
+                      setBackground(
+                        e.target.value
+                      )
                     }
                     className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm uppercase outline-none"
                   />
 
                 </div>
+
               </div>
 
             </div>
 
-            {/* DOWNLOAD */}
+            {/* BUTTONS */}
 
             <div className="mt-7 grid grid-cols-2 gap-3">
 
               <button
                 type="button"
                 onClick={clearAll}
-                className="rounded-xl border border-slate-700 px-5 py-3 text-sm font-medium text-slate-300 transition hover:border-slate-500 hover:text-white"
+                className="rounded-xl border border-slate-700 bg-slate-950 px-5 py-3 text-sm font-medium text-slate-300 transition hover:border-slate-500 hover:text-white"
               >
                 Очистить
               </button>
@@ -468,19 +768,29 @@ export default function Home() {
               <button
                 type="button"
                 onClick={downloadPNG}
-                disabled={!generated || downloading}
-                className="rounded-xl bg-white px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={
+                  !generated ||
+                  downloading
+                }
+                className="rounded-xl bg-white px-5 py-3 text-sm font-bold text-slate-950 shadow-lg transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {downloading ? "Создание..." : "PNG"}
+                {downloading
+                  ? "Создание..."
+                  : "PNG"}
               </button>
 
               <button
                 type="button"
                 onClick={downloadSVG}
-                disabled={!generated || downloading}
-                className="rounded-xl border border-white px-5 py-3 text-sm font-bold text-white transition hover:bg-white hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={
+                  !generated ||
+                  downloading
+                }
+                className="rounded-xl border border-white bg-slate-950 px-5 py-3 text-sm font-bold text-white shadow-lg transition hover:bg-white hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {downloading ? "Создание..." : "SVG"}
+                {downloading
+                  ? "Создание..."
+                  : "SVG"}
               </button>
 
             </div>
@@ -498,9 +808,11 @@ export default function Home() {
               </h2>
 
               <p className="text-sm text-slate-400">
+
                 {generated
                   ? `${size} × ${size} px`
                   : "Введите данные"}
+
               </p>
 
             </div>
@@ -508,19 +820,23 @@ export default function Home() {
             <div className="flex flex-1 items-center justify-center overflow-hidden rounded-3xl bg-white p-5">
 
               {!generated && (
+
                 <div className="text-center text-slate-400">
 
                   <div className="mx-auto mb-4 flex h-48 w-48 items-center justify-center rounded-2xl border-2 border-dashed border-slate-300">
+
                     <span className="text-sm">
                       QR-код
                     </span>
+
                   </div>
 
                   <p className="text-sm">
-                    Введите текст или ссылку
+                    Введите данные
                   </p>
 
                 </div>
+
               )}
 
               <canvas
@@ -535,9 +851,23 @@ export default function Home() {
             </div>
 
             {generated && (
+
               <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950 p-4">
 
                 <div className="flex items-center justify-between">
+
+                  <span className="text-sm text-slate-400">
+                    Тип
+                  </span>
+
+                  <span className="font-semibold">
+                    {mode}
+                  </span>
+
+                </div>
+
+                <div className="mt-2 flex items-center justify-between">
+
                   <span className="text-sm text-slate-400">
                     Разрешение
                   </span>
@@ -545,9 +875,11 @@ export default function Home() {
                   <span className="font-semibold">
                     {size} × {size}
                   </span>
+
                 </div>
 
                 <div className="mt-2 flex items-center justify-between">
+
                   <span className="text-sm text-slate-400">
                     Коррекция
                   </span>
@@ -555,22 +887,23 @@ export default function Home() {
                   <span className="font-semibold">
                     {errorLevel}
                   </span>
+
                 </div>
 
               </div>
+
             )}
 
           </section>
 
         </div>
 
-        {/* FOOTER */}
-
         <footer className="py-8 text-center text-xs text-slate-600">
           QR Pro • High Resolution QR Generator
         </footer>
 
       </div>
+
     </main>
   );
 }
